@@ -1,0 +1,31 @@
+[package]
+name = "ledger-polkadot"
+description = "Library to integrate with the Ledger Polkadot app"
+version = "0.1.0"
+license = "Apache-2.0"
+authors = ["ZondaX GmbH <info@zondax.ch>"]
+homepage = "https://github.com/ZondaX/ledger-polkadot-rs"
+repository = "https://github.com/ZondaX/ledger-polkadot-rs"
+readme = "README.md"
+categories  = ["authentication", "cryptography", "blockchain"]
+keywords = ["ledger", "nano", "apdu", "polkadot", "kusama"]
+edition     = "2018"
+autobenches = false
+
+[badges]
+circle-ci = { repository = "zondax/ledger-polkadot-rs" }
+
+[lib]
+name = "ledger_polkadot"
+
+[dependencies]
+ledger = "0.2.5"
+quick-error = "1.2.2"
+byteorder = "1.3.1"
+matches = "0.1.8"
+lazy_static = "1.2.0"
+
+[dev-dependencies]
+ed25519-dalek = "1.0.0-pre.1"
+sha2 = "0.8.0"
+hex = "0.4.0"
