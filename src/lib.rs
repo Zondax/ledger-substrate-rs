@@ -24,6 +24,8 @@ extern crate byteorder;
 extern crate ledger;
 #[macro_use]
 extern crate quick_error;
+#[cfg(test)]
+extern crate hex;
 
 use self::ledger::{ApduAnswer, ApduCommand};
 use std::str;
@@ -117,19 +119,14 @@ pub struct Version {
 
 fn serialize_bip44(account: u32, change: u32, address_index: u32) -> Vec<u8> {
     use byteorder::{LittleEndian, WriteBytesExt};
-    let mut message = Vec::new();
-    message.write_u32::<LittleEndian>(0x8000_002c).unwrap();
-    message.write_u32::<LittleEndian>(0x8000_0162).unwrap();
-    message
-        .write_u32::<LittleEndian>(0x8000_0000 | account)
-        .unwrap();
-    message
-        .write_u32::<LittleEndian>(0x8000_0000 | change)
-        .unwrap();
-    message
-        .write_u32::<LittleEndian>(0x8000_0000 | address_index)
-        .unwrap();
-    message
+    let mut m = Vec::new();
+    let harden = 0x8000_0000;
+    m.write_u32::<LittleEndian>(harden | 0x2c).unwrap();
+    m.write_u32::<LittleEndian>(harden | 0x162).unwrap();
+    m.write_u32::<LittleEndian>(harden | account).unwrap();
+    m.write_u32::<LittleEndian>(harden | change).unwrap();
+    m.write_u32::<LittleEndian>(harden | address_index).unwrap();
+    m
 }
 
 impl PolkadotApp {
@@ -152,6 +149,10 @@ impl PolkadotApp {
 
         let response = self.app.exchange(command)?;
         if response.retcode != 0x9000 {
+            return Err(Error::InvalidVersion);
+        }
+
+        if response.data.len() < 4 {
             return Err(Error::InvalidVersion);
         }
 
@@ -280,7 +281,11 @@ mod tests {
 
     #[test]
     fn bip44() {
-        let path = serialize_bip44(0, 0, 0);
+        let path = serialize_bip44(0x1234, 0, 0x5678);
         assert_eq!(path.len(), 20);
+        assert_eq!(
+            hex::encode(path),
+            "2c00008062010080341200800000008078560080"
+        );
     }
 }
