@@ -1,7 +1,7 @@
 [package]
 name = "ledger-polkadot"
 description = "Library to integrate with the Ledger Polkadot app"
-version = "0.1.0"
+version = "0.2.0"
 license = "Apache-2.0"
 authors = ["ZondaX GmbH <info@zondax.ch>"]
 homepage = "https://github.com/ZondaX/ledger-polkadot-rs"
