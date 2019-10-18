@@ -26,6 +26,8 @@ jobs:
     steps:
       - checkout
       - run: sudo apt-get install libudev-dev libusb-1.0-0-dev
+      - run: rustup component add clippy
+      - run: cargo install cargo-audit
       - run:
           name: rustfmt
           command: |
@@ -53,7 +55,7 @@ jobs:
           command: |
             rustc --version
             cargo --version
-            cargo test --all --all-features -- --test-threads 1
+            cargo test --lib --all-features
 
 workflows:
   version: 2

@@ -13,7 +13,7 @@
 *  See the License for the specific language governing permissions and
 *  limitations under the License.
 ********************************************************************************/
-//! Support library for Polkadot Ledger Nano S/X apps
+//! Support library for Kusama/Polkadot Ledger Nano S/X apps
 
 #![deny(warnings, trivial_casts, trivial_numeric_casts)]
 #![deny(unused_import_braces, unused_qualifications)]
@@ -21,21 +21,9 @@
 #![doc(html_root_url = "https://docs.rs/ledger-polkadot/0.1.0")]
 
 extern crate byteorder;
-#[cfg(test)]
-extern crate ed25519_dalek;
-#[cfg(test)]
-extern crate hex;
-#[cfg(test)]
-#[macro_use]
-extern crate lazy_static;
 extern crate ledger;
-#[cfg(test)]
-#[macro_use]
-extern crate matches;
 #[macro_use]
 extern crate quick_error;
-#[cfg(test)]
-extern crate sha2;
 
 use self::ledger::{ApduAnswer, ApduCommand};
 use std::str;
@@ -108,32 +96,38 @@ type Signature = [u8; 64];
 /// Polkadot address (includes pubkey and the corresponding ss58 address)
 #[allow(dead_code)]
 pub struct Address {
-    public_key: PublicKey,
-    ss58: String,
+    /// Public Key
+    pub public_key: PublicKey,
+    /// Address (exposed as SS58)
+    pub ss58: String,
 }
 
 /// Polkadot App Version
 #[allow(dead_code)]
 pub struct Version {
-    mode: u8,
-    major: u8,
-    minor: u8,
-    patch: u8,
+    /// Application Mode
+    pub mode: u8,
+    /// Version Major
+    pub major: u8,
+    /// Version Minor
+    pub minor: u8,
+    /// Version Patch
+    pub patch: u8,
 }
 
 fn serialize_bip44(account: u32, change: u32, address_index: u32) -> Vec<u8> {
     use byteorder::{LittleEndian, WriteBytesExt};
     let mut message = Vec::new();
-    message.write_u32::<LittleEndian>(0x8000002c).unwrap();
-    message.write_u32::<LittleEndian>(0x80000162).unwrap();
+    message.write_u32::<LittleEndian>(0x8000_002c).unwrap();
+    message.write_u32::<LittleEndian>(0x8000_0162).unwrap();
     message
-        .write_u32::<LittleEndian>(0x80000000 | account)
+        .write_u32::<LittleEndian>(0x8000_0000 | account)
         .unwrap();
     message
-        .write_u32::<LittleEndian>(0x80000000 | change)
+        .write_u32::<LittleEndian>(0x8000_0000 | change)
         .unwrap();
     message
-        .write_u32::<LittleEndian>(0x80000000 | address_index)
+        .write_u32::<LittleEndian>(0x8000_0000 | address_index)
         .unwrap();
     message
 }
@@ -180,10 +174,7 @@ impl PolkadotApp {
         require_confirmation: bool,
     ) -> Result<Address, Error> {
         let bip44path = serialize_bip44(account, change, address_index);
-        let mut p1: u8 = 0;
-        if require_confirmation {
-            p1 = 1;
-        }
+        let p1 = if require_confirmation { 1 } else { 0 };
 
         let command = ApduCommand {
             cla: CLA,
@@ -212,9 +203,7 @@ impl PolkadotApp {
                 address.ss58 = str::from_utf8(&response.data[32..]).unwrap().to_owned();
                 Ok(address)
             }
-            Err(err) => {
-                return Err(Error::Ledger(err));
-            }
+            Err(err) => Err(Error::Ledger(err)),
         }
     }
 
@@ -287,100 +276,11 @@ impl PolkadotApp {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Mutex;
-
-    use crate::{Error, PolkadotApp};
-
-    lazy_static! {
-        static ref APP: Mutex<PolkadotApp> = Mutex::new(PolkadotApp::connect().unwrap());
-    }
+    use crate::serialize_bip44;
 
     #[test]
-    fn version() {
-        let app = APP.lock().unwrap();
-
-        let resp = app.version();
-
-        match resp {
-            Ok(version) => {
-                println!("mode  {}", version.mode);
-                println!("major {}", version.major);
-                println!("minor {}", version.minor);
-                println!("patch {}", version.patch);
-
-                assert_eq!(version.major, 0x00);
-                assert!(version.minor >= 0x04);
-            }
-            Err(err) => {
-                eprintln!("Error: {:?}", err);
-            }
-        }
-    }
-
-    #[test]
-    fn address() {
-        let app = APP.lock().unwrap();
-        let resp = app.address(0, 0, 5, false);
-
-        match resp {
-            Ok(addr) => {
-                assert_eq!(addr.public_key.len(), 32);
-                assert_eq!(
-                    hex::encode(addr.public_key),
-                    "8d16d62802ca55326ec52bf76a8543b90e2aba5bcf6cd195c0d6fc1ef38fa1b3"
-                );
-                assert_eq!(addr.ss58, "FmK43tjzFGT9F68Sj9EvW6rwBQUAVuA9wNQaYxGLvfcCAxS");
-
-                println!("Public Key   {:?}", hex::encode(addr.public_key));
-                println!("Address SS58 {:?}", addr.ss58);
-            }
-            Err(err) => {
-                eprintln!("Error: {:?}", err);
-                panic!()
-            }
-        }
-    }
-
-    #[test]
-    fn sign_empty() {
-        let app = APP.lock().unwrap();
-
-        let some_message0 = b"";
-
-        let signature = app.sign(0, 0, 0, some_message0);
-        assert!(signature.is_err());
-        assert!(matches!(
-            signature.err().unwrap(),
-            Error::InvalidEmptyMessage
-        ));
-    }
-
-    #[test]
-    fn sign_verify() {
-        let app = APP.lock().unwrap();
-
-        let txstr = "060904d503910133158139ae28a3dfaac5fe1560a5e9e05cc8010000fe06016e907605fb7ae9e09efc7237e57d31a32096a65d14f56524f37b909ef75390da7afac52b00d971bf76d6f513b138862eba20ed49cfd7580affaa9d3dba";
-        let blob = hex::decode(txstr).unwrap();
-
-        match app.sign(0, 0, 0, &blob) {
-            Ok(sig) => {
-                use ed25519_dalek::PublicKey;
-                use ed25519_dalek::Signature;
-
-                println!("{:#?}", sig.to_vec());
-
-                // First, get public key
-                let addr = app.address(0, 0, 0, false).unwrap();
-                let public_key = PublicKey::from_bytes(&addr.public_key).unwrap();
-                let signature = Signature::from_bytes(&sig).unwrap();
-
-                // Verify signature
-                assert!(public_key.verify(&blob, &signature).is_ok());
-            }
-            Err(e) => {
-                println!("Err {:#?}", e);
-                panic!();
-            }
-        }
+    fn bip44() {
+        let path = serialize_bip44(0, 0, 0);
+        assert_eq!(path.len(), 20);
     }
 }
