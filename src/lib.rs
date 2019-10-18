@@ -18,9 +18,7 @@
 #![deny(warnings, trivial_casts, trivial_numeric_casts)]
 #![deny(unused_import_braces, unused_qualifications)]
 #![deny(missing_docs)]
-#![doc(
-html_root_url = "https://docs.rs/ledger-polkadot/0.1.0"
-)]
+#![doc(html_root_url = "https://docs.rs/ledger-polkadot/0.1.0")]
 
 extern crate byteorder;
 #[cfg(test)]
@@ -52,7 +50,7 @@ const USER_MESSAGE_CHUNK_SIZE: usize = 250;
 enum PayloadType {
     Init = 0x00,
     Add = 0x01,
-    Last = 0x02
+    Last = 0x02,
 }
 
 quick_error! {
@@ -128,9 +126,15 @@ fn serialize_bip44(account: u32, change: u32, address_index: u32) -> Vec<u8> {
     let mut message = Vec::new();
     message.write_u32::<LittleEndian>(0x8000002c).unwrap();
     message.write_u32::<LittleEndian>(0x80000162).unwrap();
-    message.write_u32::<LittleEndian>(0x80000000 | account).unwrap();
-    message.write_u32::<LittleEndian>(0x80000000 | change).unwrap();
-    message.write_u32::<LittleEndian>(0x80000000 | address_index).unwrap();
+    message
+        .write_u32::<LittleEndian>(0x80000000 | account)
+        .unwrap();
+    message
+        .write_u32::<LittleEndian>(0x80000000 | change)
+        .unwrap();
+    message
+        .write_u32::<LittleEndian>(0x80000000 | address_index)
+        .unwrap();
     message
 }
 
@@ -168,11 +172,13 @@ impl PolkadotApp {
     }
 
     /// Retrieves the public key and address
-    pub fn address(&self,
-                   account: u32,
-                   change: u32,
-                   address_index: u32,
-                   require_confirmation: bool) -> Result<Address, Error> {
+    pub fn address(
+        &self,
+        account: u32,
+        change: u32,
+        address_index: u32,
+        require_confirmation: bool,
+    ) -> Result<Address, Error> {
         let bip44path = serialize_bip44(account, change, address_index);
         let mut p1: u8 = 0;
         if require_confirmation {
@@ -198,7 +204,10 @@ impl PolkadotApp {
                     return Err(Error::InvalidPK);
                 }
 
-                let mut address = Address { public_key: [0; 32], ss58: "".to_string() };
+                let mut address = Address {
+                    public_key: [0; 32],
+                    ss58: "".to_string(),
+                };
                 address.public_key.copy_from_slice(&response.data[..32]);
                 address.ss58 = str::from_utf8(&response.data[32..]).unwrap().to_owned();
                 Ok(address)
@@ -210,11 +219,13 @@ impl PolkadotApp {
     }
 
     /// Sign a transaction
-    pub fn sign(&self,
-                account: u32,
-                change: u32,
-                address_index: u32,
-                message: &[u8]) -> Result<Signature, Error> {
+    pub fn sign(
+        &self,
+        account: u32,
+        change: u32,
+        address_index: u32,
+        message: &[u8],
+    ) -> Result<Signature, Error> {
         let bip44path = serialize_bip44(account, change, address_index);
         let chunks = message.chunks(USER_MESSAGE_CHUNK_SIZE);
 
@@ -281,8 +292,7 @@ mod tests {
     use crate::{Error, PolkadotApp};
 
     lazy_static! {
-        static ref APP: Mutex<PolkadotApp> =
-            Mutex::new(PolkadotApp::connect().unwrap());
+        static ref APP: Mutex<PolkadotApp> = Mutex::new(PolkadotApp::connect().unwrap());
     }
 
     #[test]
@@ -315,10 +325,11 @@ mod tests {
         match resp {
             Ok(addr) => {
                 assert_eq!(addr.public_key.len(), 32);
-                assert_eq!(hex::encode(addr.public_key),
-                           "8d16d62802ca55326ec52bf76a8543b90e2aba5bcf6cd195c0d6fc1ef38fa1b3");
-                assert_eq!(addr.ss58,
-                           "FmK43tjzFGT9F68Sj9EvW6rwBQUAVuA9wNQaYxGLvfcCAxS");
+                assert_eq!(
+                    hex::encode(addr.public_key),
+                    "8d16d62802ca55326ec52bf76a8543b90e2aba5bcf6cd195c0d6fc1ef38fa1b3"
+                );
+                assert_eq!(addr.ss58, "FmK43tjzFGT9F68Sj9EvW6rwBQUAVuA9wNQaYxGLvfcCAxS");
 
                 println!("Public Key   {:?}", hex::encode(addr.public_key));
                 println!("Address SS58 {:?}", addr.ss58);
@@ -373,4 +384,3 @@ mod tests {
         }
     }
 }
-
