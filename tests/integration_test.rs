@@ -21,24 +21,19 @@
 
 extern crate ed25519_dalek;
 extern crate hex;
-#[macro_use]
-extern crate lazy_static;
-extern crate ledger_polkadot;
+extern crate ledger_kusama;
 #[macro_use]
 extern crate matches;
 extern crate sha2;
+#[macro_use]
+extern crate serial_test;
 
-use std::sync::Mutex;
-
-use ledger_polkadot::{Error, PolkadotApp};
-
-lazy_static! {
-    static ref APP: Mutex<PolkadotApp> = Mutex::new(PolkadotApp::connect().unwrap());
-}
+use ledger_kusama::{Error, KusamaApp};
 
 #[test]
+#[serial]
 fn version() {
-    let app = APP.lock().unwrap();
+    let app = KusamaApp::connect().unwrap();
 
     let resp = app.version();
 
@@ -59,8 +54,9 @@ fn version() {
 }
 
 #[test]
+#[serial]
 fn address() {
-    let app = APP.lock().unwrap();
+    let app = KusamaApp::connect().unwrap();
     let resp = app.address(0, 0, 5, false);
 
     match resp {
@@ -83,8 +79,9 @@ fn address() {
 }
 
 #[test]
+#[serial]
 fn sign_empty() {
-    let app = APP.lock().unwrap();
+    let app = KusamaApp::connect().unwrap();
 
     let some_message0 = b"";
 
@@ -97,8 +94,9 @@ fn sign_empty() {
 }
 
 #[test]
+#[serial]
 fn sign_verify() {
-    let app = APP.lock().unwrap();
+    let app = KusamaApp::connect().unwrap();
 
     let txstr = "060904d503910133158139ae28a3dfaac5fe1560a5e9e05cc8010000fe06016e907605fb7ae9e09efc7237e57d31a32096a65d14f56524f37b909ef75390da7afac52b00d971bf76d6f513b138862eba20ed49cfd7580affaa9d3dba";
     let blob = hex::decode(txstr).unwrap();

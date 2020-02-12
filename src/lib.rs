@@ -1,5 +1,5 @@
 /*******************************************************************************
-*   (c) 2018, 2019 ZondaX GmbH
+*   (c) 2020 Zondax GmbH
 *
 *  Licensed under the Apache License, Version 2.0 (the "License");
 *  you may not use this file except in compliance with the License.
@@ -13,12 +13,14 @@
 *  See the License for the specific language governing permissions and
 *  limitations under the License.
 ********************************************************************************/
-//! Support library for Kusama/Polkadot Ledger Nano S/X apps
+//! Support library for Kusama Ledger Nano S/X apps
 
 #![deny(warnings, trivial_casts, trivial_numeric_casts)]
 #![deny(unused_import_braces, unused_qualifications)]
 #![deny(missing_docs)]
-#![doc(html_root_url = "https://docs.rs/ledger-polkadot/0.1.0")]
+#![doc(html_root_url = "https://docs.rs/ledger-kusama")]
+
+mod params;
 
 extern crate byteorder;
 extern crate ledger;
@@ -28,20 +30,11 @@ extern crate quick_error;
 extern crate hex;
 
 use self::ledger::{ApduAnswer, ApduCommand};
+use crate::params::{
+    APDUErrors, PayloadType, CLA, INS_GET_ADDR_ED25519, INS_GET_VERSION, INS_SIGN_ED25519,
+    USER_MESSAGE_CHUNK_SIZE,
+};
 use std::str;
-
-const CLA: u8 = 0x99;
-const INS_GET_VERSION: u8 = 0x00;
-const INS_GET_ADDR_ED25519: u8 = 0x01;
-const INS_SIGN_ED25519: u8 = 0x02;
-
-const USER_MESSAGE_CHUNK_SIZE: usize = 250;
-
-enum PayloadType {
-    Init = 0x00,
-    Add = 0x01,
-    Last = 0x02,
-}
 
 quick_error! {
     /// Ledger App Error
@@ -55,7 +48,7 @@ quick_error! {
         InvalidEmptyMessage{
             description("message cannot be empty")
         }
-        /// The size fo the maessage to sign is invalid
+        /// The size of the message to sign is invalid
         InvalidMessageSize{
             description("message size is invalid (too big)")
         }
@@ -85,17 +78,17 @@ quick_error! {
     }
 }
 
-/// Polkadot App
-pub struct PolkadotApp {
+/// Kusama App
+pub struct KusamaApp {
     app: ledger::LedgerApp,
 }
 
-unsafe impl Send for PolkadotApp {}
+unsafe impl Send for KusamaApp {}
 
 type PublicKey = [u8; 32];
 type Signature = [u8; 64];
 
-/// Polkadot address (includes pubkey and the corresponding ss58 address)
+/// Kusama address (includes pubkey and the corresponding ss58 address)
 #[allow(dead_code)]
 pub struct Address {
     /// Public Key
@@ -104,7 +97,7 @@ pub struct Address {
     pub ss58: String,
 }
 
-/// Polkadot App Version
+/// App Version
 #[allow(dead_code)]
 pub struct Version {
     /// Application Mode
@@ -129,11 +122,11 @@ fn serialize_bip44(account: u32, change: u32, address_index: u32) -> Vec<u8> {
     m
 }
 
-impl PolkadotApp {
+impl KusamaApp {
     /// Connect to the Ledger App
     pub fn connect() -> Result<Self, Error> {
         let app = ledger::LedgerApp::new()?;
-        Ok(PolkadotApp { app })
+        Ok(KusamaApp { app })
     }
 
     /// Retrieve the app version
@@ -148,7 +141,7 @@ impl PolkadotApp {
         };
 
         let response = self.app.exchange(command)?;
-        if response.retcode != 0x9000 {
+        if response.retcode != APDUErrors::NoError as u16 {
             return Err(Error::InvalidVersion);
         }
 
