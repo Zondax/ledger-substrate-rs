@@ -23,59 +23,46 @@
 mod params;
 
 extern crate byteorder;
-extern crate ledger;
-#[macro_use]
-extern crate quick_error;
 #[cfg(test)]
 extern crate hex;
+extern crate ledger;
+
+use thiserror::Error;
 
 use self::ledger::{ApduAnswer, ApduCommand};
 use crate::params::{
-    APDUErrors, PayloadType, CLA, INS_GET_ADDR_ED25519, INS_GET_VERSION, INS_SIGN_ED25519,
-    USER_MESSAGE_CHUNK_SIZE,
+    APDUErrors, PayloadType, BIP44_0, BIP44_1, CLA, INS_GET_ADDR_ED25519, INS_GET_VERSION,
+    INS_SIGN_ED25519, USER_MESSAGE_CHUNK_SIZE,
 };
 use std::str;
 
-quick_error! {
-    /// Ledger App Error
-    #[derive(Debug)]
-    pub enum Error {
-        /// Invalid version error
-        InvalidVersion{
-            description("This version is not supported")
-        }
-        /// The message cannot be empty
-        InvalidEmptyMessage{
-            description("message cannot be empty")
-        }
-        /// The size of the message to sign is invalid
-        InvalidMessageSize{
-            description("message size is invalid (too big)")
-        }
-        /// Public Key is invalid
-        InvalidPK{
-            description("received an invalid PK")
-        }
-        /// No signature has been returned
-        NoSignature {
-            description("received no signature back")
-        }
-        /// The signature is not valid
-        InvalidSignature {
-            description("received an invalid signature")
-        }
-        /// The derivation is invalid
-        InvalidDerivationPath {
-            description("invalid derivation path")
-        }
-        /// Device related errors
-        Ledger ( err: ledger::Error ) {
-            from()
-            description("ledger error")
-            display("Ledger error: {}", err)
-            cause(err)
-        }
-    }
+/// Ledger App Error
+#[derive(Error, Debug)]
+pub enum LedgerAppError {
+    /// Invalid version error
+    #[error("This version is not supported")]
+    InvalidVersion,
+    /// The message cannot be empty
+    #[error("message cannot be empty")]
+    InvalidEmptyMessage,
+    /// The size of the message to sign is invalid
+    #[error("message size is invalid (too big)")]
+    InvalidMessageSize,
+    /// Public Key is invalid
+    #[error("received an invalid public key")]
+    InvalidPK,
+    /// No signature has been returned
+    #[error("received no signature back")]
+    NoSignature,
+    /// The signature is not valid
+    #[error("received an invalid signature")]
+    InvalidSignature,
+    /// The derivation is invalid
+    #[error("invalid derivation path")]
+    InvalidDerivationPath,
+    /// Ledger device error
+    #[error("Ledger device error")]
+    Ledger(#[from] ledger::Error),
 }
 
 /// Kusama App
@@ -114,23 +101,28 @@ fn serialize_bip44(account: u32, change: u32, address_index: u32) -> Vec<u8> {
     use byteorder::{LittleEndian, WriteBytesExt};
     let mut m = Vec::new();
     let harden = 0x8000_0000;
-    m.write_u32::<LittleEndian>(harden | 0x2c).unwrap();
-    m.write_u32::<LittleEndian>(harden | 0x162).unwrap();
-    m.write_u32::<LittleEndian>(harden | account).unwrap();
-    m.write_u32::<LittleEndian>(harden | change).unwrap();
-    m.write_u32::<LittleEndian>(harden | address_index).unwrap();
+    m.write_u32::<LittleEndian>(harden | BIP44_0)
+        .expect("error writing u32");
+    m.write_u32::<LittleEndian>(harden | BIP44_1)
+        .expect("error writing u32");
+    m.write_u32::<LittleEndian>(harden | account)
+        .expect("error writing u32");
+    m.write_u32::<LittleEndian>(harden | change)
+        .expect("error writing u32");
+    m.write_u32::<LittleEndian>(harden | address_index)
+        .expect("error writing u32");
     m
 }
 
 impl KusamaApp {
     /// Connect to the Ledger App
-    pub fn connect() -> Result<Self, Error> {
+    pub fn connect() -> Result<Self, LedgerAppError> {
         let app = ledger::LedgerApp::new()?;
         Ok(KusamaApp { app })
     }
 
     /// Retrieve the app version
-    pub fn version(&self) -> Result<Version, Error> {
+    pub fn version(&self) -> Result<Version, LedgerAppError> {
         let command = ApduCommand {
             cla: CLA,
             ins: INS_GET_VERSION,
@@ -142,11 +134,11 @@ impl KusamaApp {
 
         let response = self.app.exchange(command)?;
         if response.retcode != APDUErrors::NoError as u16 {
-            return Err(Error::InvalidVersion);
+            return Err(LedgerAppError::InvalidVersion);
         }
 
         if response.data.len() < 4 {
-            return Err(Error::InvalidVersion);
+            return Err(LedgerAppError::InvalidVersion);
         }
 
         let version = Version {
@@ -166,7 +158,7 @@ impl KusamaApp {
         change: u32,
         address_index: u32,
         require_confirmation: bool,
-    ) -> Result<Address, Error> {
+    ) -> Result<Address, LedgerAppError> {
         let bip44path = serialize_bip44(account, change, address_index);
         let p1 = if require_confirmation { 1 } else { 0 };
 
@@ -186,7 +178,7 @@ impl KusamaApp {
                 }
 
                 if response.data.len() < 32 {
-                    return Err(Error::InvalidPK);
+                    return Err(LedgerAppError::InvalidPK);
                 }
 
                 let mut address = Address {
@@ -197,7 +189,7 @@ impl KusamaApp {
                 address.ss58 = str::from_utf8(&response.data[32..]).unwrap().to_owned();
                 Ok(address)
             }
-            Err(err) => Err(Error::Ledger(err)),
+            Err(err) => Err(LedgerAppError::Ledger(err)),
         }
     }
 
@@ -208,16 +200,16 @@ impl KusamaApp {
         change: u32,
         address_index: u32,
         message: &[u8],
-    ) -> Result<Signature, Error> {
+    ) -> Result<Signature, LedgerAppError> {
         let bip44path = serialize_bip44(account, change, address_index);
         let chunks = message.chunks(USER_MESSAGE_CHUNK_SIZE);
 
         if chunks.len() > 255 {
-            return Err(Error::InvalidMessageSize);
+            return Err(LedgerAppError::InvalidMessageSize);
         }
 
         if chunks.len() == 0 {
-            return Err(Error::InvalidEmptyMessage);
+            return Err(LedgerAppError::InvalidEmptyMessage);
         }
 
         let packet_count = chunks.len() as u8;
@@ -254,12 +246,12 @@ impl KusamaApp {
         }
 
         if response.data.is_empty() && response.retcode == 0x9000 {
-            return Err(Error::NoSignature);
+            return Err(LedgerAppError::NoSignature);
         }
 
         // Last response should contain the answer
         if response.data.len() != 64 {
-            return Err(Error::InvalidSignature);
+            return Err(LedgerAppError::InvalidSignature);
         }
 
         let mut array = [0u8; 64];

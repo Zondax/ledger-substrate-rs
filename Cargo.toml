@@ -3,9 +3,9 @@ name = "ledger-kusama"
 description = "Library to integrate with the Ledger Kusama app"
 version = "0.3.0"
 license = "Apache-2.0"
-authors = ["ZondaX GmbH <info@zondax.ch>"]
-homepage = "https://github.com/ZondaX/ledger-kusama-rs"
-repository = "https://github.com/ZondaX/ledger-kusama-rs"
+authors = ["Zondax GmbH <info@zondax.ch>"]
+homepage = "https://github.com/Zondax/ledger-kusama-rs"
+repository = "https://github.com/Zondax/ledger-kusama-rs"
 readme = "README.md"
 categories  = ["authentication", "cryptography"]
 keywords = ["ledger", "nano", "apdu", "polkadot", "kusama"]
@@ -20,15 +20,14 @@ name = "ledger_kusama"
 
 [dependencies]
 ledger = "0.2.5"
-quick-error = "1.2.2"
-byteorder = "1.3.1"
+thiserror = "1.0.10"
+byteorder = "1.3.4"
 matches = "0.1.8"
-lazy_static = "1.2.0"
 
 [dev-dependencies]
-ed25519-dalek = "1.0.0-pre.2"
-sha2 = "0.8.0"
-hex = "0.4.0"
+ed25519-dalek ="1.0.0-pre.3"
+sha2 = "0.8.1"
+hex = "0.4.1"
 serial_test = "0.3.2"
 
 [profile.release]

@@ -28,7 +28,7 @@ extern crate sha2;
 #[macro_use]
 extern crate serial_test;
 
-use ledger_kusama::{Error, KusamaApp};
+use ledger_kusama::{KusamaApp, LedgerAppError};
 
 #[test]
 #[serial]
@@ -89,7 +89,7 @@ fn sign_empty() {
     assert!(signature.is_err());
     assert!(matches!(
         signature.err().unwrap(),
-        Error::InvalidEmptyMessage
+        LedgerAppError::InvalidEmptyMessage
     ));
 }
 

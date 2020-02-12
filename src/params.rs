@@ -16,13 +16,15 @@
 #![deny(warnings, trivial_casts, trivial_numeric_casts)]
 #![deny(unused_import_braces, unused_qualifications)]
 #![deny(missing_docs)]
-#![doc(html_root_url = "https://docs.rs/ledger-filecoin/0.1.0")]
+#![doc(html_root_url = "https://docs.rs/ledger-kusama")]
 
 pub const CLA: u8 = 0x99;
 pub const INS_GET_VERSION: u8 = 0x00;
 pub const INS_GET_ADDR_ED25519: u8 = 0x01;
 pub const INS_SIGN_ED25519: u8 = 0x02;
 
+pub const BIP44_0: u32 = 0x2c;
+pub const BIP44_1: u32 = 0x162;
 pub const USER_MESSAGE_CHUNK_SIZE: usize = 250;
 
 pub enum PayloadType {
