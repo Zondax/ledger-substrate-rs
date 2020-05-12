@@ -1,6 +1,6 @@
 # Rust library for Ledger Kusama app
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![CircleCI](https://circleci.com/gh/ZondaX/ledger-polkadot-rs.svg?style=shield)](https://circleci.com/gh/ZondaX/ledger-polkadot-s)
+[![CircleCI](https://circleci.com/gh/ZondaX/ledger-polkadot-rs.svg?style=shield)](https://circleci.com/gh/ZondaX/ledger-polkadot-rs)
 
 This package provides a basic Rust client library to communicate with the Kusama/Polkadot App running in a Ledger Nano S/X devices
 
