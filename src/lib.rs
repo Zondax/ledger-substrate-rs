@@ -73,7 +73,7 @@ pub struct KusamaApp {
 unsafe impl Send for KusamaApp {}
 
 type PublicKey = [u8; 32];
-type Signature = [u8; 64];
+type Signature = [u8; 65];
 
 /// Kusama address (includes pubkey and the corresponding ss58 address)
 #[allow(dead_code)]
@@ -90,11 +90,11 @@ pub struct Version {
     /// Application Mode
     pub mode: u8,
     /// Version Major
-    pub major: u8,
+    pub major: u16,
     /// Version Minor
-    pub minor: u8,
+    pub minor: u16,
     /// Version Patch
-    pub patch: u8,
+    pub patch: u16,
 }
 
 fn serialize_bip44(account: u32, change: u32, address_index: u32) -> Vec<u8> {
@@ -143,9 +143,9 @@ impl KusamaApp {
 
         let version = Version {
             mode: response.data[0],
-            major: response.data[1],
-            minor: response.data[2],
-            patch: response.data[3],
+            major: response.data[1] as u16 * 256 + response.data[2] as u16,
+            minor: response.data[3] as u16 * 256 + response.data[4] as u16,
+            patch: response.data[5] as u16 * 256 + response.data[6] as u16,
         };
 
         Ok(version)
@@ -250,12 +250,12 @@ impl KusamaApp {
         }
 
         // Last response should contain the answer
-        if response.data.len() != 64 {
+        if response.data.len() != 65 {
             return Err(LedgerAppError::InvalidSignature);
         }
 
-        let mut array = [0u8; 64];
-        array.copy_from_slice(&response.data[..64]);
+        let mut array = [0u8; 65];
+        array.copy_from_slice(&response.data[..65]);
         Ok(array)
     }
 }

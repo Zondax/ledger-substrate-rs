@@ -24,7 +24,7 @@ pub const INS_GET_ADDR_ED25519: u8 = 0x01;
 pub const INS_SIGN_ED25519: u8 = 0x02;
 
 pub const BIP44_0: u32 = 0x2c;
-pub const BIP44_1: u32 = 0x162;
+pub const BIP44_1: u32 = 434;
 pub const USER_MESSAGE_CHUNK_SIZE: usize = 250;
 
 pub enum PayloadType {

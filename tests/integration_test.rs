@@ -27,6 +27,7 @@ extern crate matches;
 extern crate sha2;
 #[macro_use]
 extern crate serial_test;
+use blake2b_simd::Params;
 
 use ledger_kusama::{KusamaApp, LedgerAppError};
 
@@ -44,8 +45,8 @@ fn version() {
             println!("minor {}", version.minor);
             println!("patch {}", version.patch);
 
-            assert_eq!(version.major, 0x00);
-            assert!(version.minor >= 0x04);
+            // assert_eq!(version.major, 0x00);
+            // assert!(version.minor >= 0x04);
         }
         Err(err) => {
             eprintln!("Error: {:?}", err);
@@ -64,9 +65,34 @@ fn address() {
             assert_eq!(addr.public_key.len(), 32);
             assert_eq!(
                 hex::encode(addr.public_key),
-                "8d16d62802ca55326ec52bf76a8543b90e2aba5bcf6cd195c0d6fc1ef38fa1b3"
+                "d280b24dface41f31006e5a2783971fc5a66c862dd7d08f97603d2902b75e47a"
             );
-            assert_eq!(addr.ss58, "FmK43tjzFGT9F68Sj9EvW6rwBQUAVuA9wNQaYxGLvfcCAxS");
+            assert_eq!(addr.ss58, "HLKocKgeGjpXkGJU6VACtTYJK4ApTCfcGRw51E5jWntcsXv");
+
+            println!("Public Key   {:?}", hex::encode(addr.public_key));
+            println!("Address SS58 {:?}", addr.ss58);
+        }
+        Err(err) => {
+            eprintln!("Error: {:?}", err);
+            panic!()
+        }
+    }
+}
+
+#[test]
+#[serial]
+fn show_address() {
+    let app = KusamaApp::connect().unwrap();
+    let resp = app.address(0, 0, 5, true);
+
+    match resp {
+        Ok(addr) => {
+            assert_eq!(addr.public_key.len(), 32);
+            assert_eq!(
+                hex::encode(addr.public_key),
+                "d280b24dface41f31006e5a2783971fc5a66c862dd7d08f97603d2902b75e47a"
+            );
+            assert_eq!(addr.ss58, "HLKocKgeGjpXkGJU6VACtTYJK4ApTCfcGRw51E5jWntcsXv");
 
             println!("Public Key   {:?}", hex::encode(addr.public_key));
             println!("Address SS58 {:?}", addr.ss58);
@@ -96,25 +122,36 @@ fn sign_empty() {
 #[test]
 #[serial]
 fn sign_verify() {
+    use ed25519_dalek::PublicKey;
+    use ed25519_dalek::Signature;
+
     let app = KusamaApp::connect().unwrap();
 
-    let txstr = "060904d503910133158139ae28a3dfaac5fe1560a5e9e05cc8010000fe06016e907605fb7ae9e09efc7237e57d31a32096a65d14f56524f37b909ef75390da7afac52b00d971bf76d6f513b138862eba20ed49cfd7580affaa9d3dba";
+    let txstr = "0000b30d1caed503000b63ce64c10c0526040000b0a8d493285c2df73290dfb7e61f870f17b41801197a149ca93654499ea3dafeb0a8d493285c2df73290dfb7e61f870f17b41801197a149ca93654499ea3dafe";
     let blob = hex::decode(txstr).unwrap();
 
+    // First, get public key
+    let addr = app.address(0, 0, 0, false).unwrap();
+    let public_key = PublicKey::from_bytes(&addr.public_key).unwrap();
+
     match app.sign(0, 0, 0, &blob) {
-        Ok(sig) => {
-            use ed25519_dalek::PublicKey;
-            use ed25519_dalek::Signature;
+        Ok(reply_signature) => {
 
-            println!("{:#?}", sig.to_vec());
+            // we need to remove first byte (there is a new prepended byte)
+            let signature = Signature::from_bytes(&reply_signature[1..]).unwrap();
 
-            // First, get public key
-            let addr = app.address(0, 0, 0, false).unwrap();
-            let public_key = PublicKey::from_bytes(&addr.public_key).unwrap();
-            let signature = Signature::from_bytes(&sig).unwrap();
+            if blob.len() > 256 {
+                // When the blob is > 256, the digest is signed
+                let message_hashed = Params::new()
+                    .hash_length(64)
+                    .to_state()
+                    .update(&blob)
+                    .finalize();
 
-            // Verify signature
-            assert!(public_key.verify(&blob, &signature).is_ok());
+                assert!(public_key.verify((&message_hashed).as_ref(), &signature).is_ok());
+            } else {
+                assert!(public_key.verify(&blob, &signature).is_ok());
+            }
         }
         Err(e) => {
             println!("Err {:#?}", e);

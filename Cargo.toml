@@ -23,6 +23,7 @@ ledger = "0.2.5"
 thiserror = "1.0.10"
 byteorder = "1.3.4"
 matches = "0.1.8"
+blake2b_simd = "0.5.10"
 
 [dev-dependencies]
 ed25519-dalek ="1.0.0-pre.3"
