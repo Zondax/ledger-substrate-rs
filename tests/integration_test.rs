@@ -32,9 +32,9 @@ mod integration_tests {
     use ed25519_dalek::PublicKey;
     use ed25519_dalek::Signature;
     use futures_await_test::async_test;
-    use ledger_kusama::app::LedgerApp;
-    use ledger_kusama::errors::LedgerError;
     use ledger_kusama::APDUTransport;
+    use ledger_kusama::KusamaApp;
+    use ledger_kusama::LedgerError;
     use zx_bip44::BIP44Path;
 
     fn init_logging() {
@@ -49,7 +49,7 @@ mod integration_tests {
         let transport = APDUTransport {
             transport_wrapper: ledger::TransportNativeHID::new().unwrap(),
         };
-        let app = LedgerApp::new(transport);
+        let app = KusamaApp::new(transport);
 
         let resp = app.get_version().await.unwrap();
 
@@ -70,7 +70,7 @@ mod integration_tests {
         let transport = APDUTransport {
             transport_wrapper: ledger::TransportNativeHID::new().unwrap(),
         };
-        let app = LedgerApp::new(transport);
+        let app = KusamaApp::new(transport);
 
         let path = BIP44Path::from_string("m/44'/434'/0/0/5").unwrap();
         let resp = app.get_address(&path, false).await.unwrap();
@@ -94,7 +94,7 @@ mod integration_tests {
         let transport = APDUTransport {
             transport_wrapper: ledger::TransportNativeHID::new().unwrap(),
         };
-        let app = LedgerApp::new(transport);
+        let app = KusamaApp::new(transport);
 
         let path = BIP44Path::from_string("m/44'/434'/0/0/5").unwrap();
         let resp = app.get_address(&path, true).await.unwrap();
@@ -118,7 +118,7 @@ mod integration_tests {
         let transport = APDUTransport {
             transport_wrapper: ledger::TransportNativeHID::new().unwrap(),
         };
-        let app = LedgerApp::new(transport);
+        let app = KusamaApp::new(transport);
 
         let path = BIP44Path::from_string("m/44'/434'/0/0/5").unwrap();
         let some_message0 = b"";
@@ -139,7 +139,7 @@ mod integration_tests {
         let transport = APDUTransport {
             transport_wrapper: ledger::TransportNativeHID::new().unwrap(),
         };
-        let app = LedgerApp::new(transport);
+        let app = KusamaApp::new(transport);
 
         let path = BIP44Path::from_string("m/44'/434'/0/0/5").unwrap();
         let txstr = "0000b30d1caed503000b63ce64c10c0526040000b0a8d493285c2df73290dfb7e61f870f17b41801197a149ca93654499ea3dafeb0a8d493285c2df73290dfb7e61f870f17b41801197a149ca93654499ea3dafe";

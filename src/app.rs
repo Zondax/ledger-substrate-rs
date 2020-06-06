@@ -29,7 +29,7 @@ use crate::errors::LedgerError;
 use std::str;
 
 /// Ledger App
-pub struct LedgerApp {
+pub struct KusamaApp {
     apdu_transport: APDUTransport,
 }
 
@@ -105,10 +105,10 @@ pub struct DeviceInfo {
     pub mcu_version: String,
 }
 
-impl LedgerApp {
+impl KusamaApp {
     /// Connect to the Ledger App
     pub fn new(apdu_transport: APDUTransport) -> Self {
-        LedgerApp { apdu_transport }
+        KusamaApp { apdu_transport }
     }
 
     /// Retrieve the app version

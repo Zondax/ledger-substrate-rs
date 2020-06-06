@@ -29,10 +29,10 @@
 #![deny(missing_docs)]
 #![doc(html_root_url = "https://docs.rs/ledger-kusama/0.1.0")]
 
-mod params;
-
+mod app;
 /// Ledger related errors
-pub mod errors;
+mod errors;
+mod params;
 
 pub use ledger_transport::errors::TransportError;
 #[cfg(target_arch = "wasm32")]
@@ -40,4 +40,5 @@ pub use ledger_transport::TransportWrapperTrait;
 pub use ledger_transport::{APDUAnswer, APDUCommand, APDUErrorCodes, APDUTransport};
 
 /// Kusama app
-pub mod app;
+pub use app::KusamaApp;
+pub use errors::LedgerError;
