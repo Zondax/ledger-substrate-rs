@@ -1,5 +1,5 @@
 /*******************************************************************************
-*   (c) 2018, 2019 ZondaX GmbH
+*   (c) 2018-2020 Zondax GmbH
 *
 *  Licensed under the Apache License, Version 2.0 (the "License");
 *  you may not use this file except in compliance with the License.
@@ -13,149 +13,160 @@
 *  See the License for the specific language governing permissions and
 *  limitations under the License.
 ********************************************************************************/
-// Integration tests
-
 #![deny(warnings, trivial_casts, trivial_numeric_casts)]
 #![deny(unused_import_braces, unused_qualifications)]
 #![deny(missing_docs)]
 
 extern crate ed25519_dalek;
 extern crate hex;
-extern crate ledger_kusama;
 #[macro_use]
 extern crate matches;
 extern crate sha2;
 #[macro_use]
 extern crate serial_test;
-use blake2b_simd::Params;
+extern crate ledger_kusama;
 
-use ledger_kusama::{KusamaApp, LedgerAppError};
-
-#[test]
-#[serial]
-fn version() {
-    let app = KusamaApp::connect().unwrap();
-
-    let resp = app.version();
-
-    match resp {
-        Ok(version) => {
-            println!("mode  {}", version.mode);
-            println!("major {}", version.major);
-            println!("minor {}", version.minor);
-            println!("patch {}", version.patch);
-
-            // assert_eq!(version.major, 0x00);
-            // assert!(version.minor >= 0x04);
-        }
-        Err(err) => {
-            eprintln!("Error: {:?}", err);
-        }
-    }
-}
-
-#[test]
-#[serial]
-fn address() {
-    let app = KusamaApp::connect().unwrap();
-    let resp = app.address(0, 0, 5, false);
-
-    match resp {
-        Ok(addr) => {
-            assert_eq!(addr.public_key.len(), 32);
-            assert_eq!(
-                hex::encode(addr.public_key),
-                "d280b24dface41f31006e5a2783971fc5a66c862dd7d08f97603d2902b75e47a"
-            );
-            assert_eq!(addr.ss58, "HLKocKgeGjpXkGJU6VACtTYJK4ApTCfcGRw51E5jWntcsXv");
-
-            println!("Public Key   {:?}", hex::encode(addr.public_key));
-            println!("Address SS58 {:?}", addr.ss58);
-        }
-        Err(err) => {
-            eprintln!("Error: {:?}", err);
-            panic!()
-        }
-    }
-}
-
-#[test]
-#[serial]
-fn show_address() {
-    let app = KusamaApp::connect().unwrap();
-    let resp = app.address(0, 0, 5, true);
-
-    match resp {
-        Ok(addr) => {
-            assert_eq!(addr.public_key.len(), 32);
-            assert_eq!(
-                hex::encode(addr.public_key),
-                "d280b24dface41f31006e5a2783971fc5a66c862dd7d08f97603d2902b75e47a"
-            );
-            assert_eq!(addr.ss58, "HLKocKgeGjpXkGJU6VACtTYJK4ApTCfcGRw51E5jWntcsXv");
-
-            println!("Public Key   {:?}", hex::encode(addr.public_key));
-            println!("Address SS58 {:?}", addr.ss58);
-        }
-        Err(err) => {
-            eprintln!("Error: {:?}", err);
-            panic!()
-        }
-    }
-}
-
-#[test]
-#[serial]
-fn sign_empty() {
-    let app = KusamaApp::connect().unwrap();
-
-    let some_message0 = b"";
-
-    let signature = app.sign(0, 0, 0, some_message0);
-    assert!(signature.is_err());
-    assert!(matches!(
-        signature.err().unwrap(),
-        LedgerAppError::InvalidEmptyMessage
-    ));
-}
-
-#[test]
-#[serial]
-fn sign_verify() {
+#[cfg(test)]
+mod integration_tests {
+    use blake2b_simd::Params;
     use ed25519_dalek::PublicKey;
     use ed25519_dalek::Signature;
+    use futures_await_test::async_test;
+    use ledger_kusama::app::LedgerApp;
+    use ledger_kusama::errors::LedgerError;
+    use ledger_kusama::APDUTransport;
+    use zx_bip44::BIP44Path;
 
-    let app = KusamaApp::connect().unwrap();
+    fn init_logging() {
+        let _ = env_logger::builder().is_test(true).try_init();
+    }
 
-    let txstr = "0000b30d1caed503000b63ce64c10c0526040000b0a8d493285c2df73290dfb7e61f870f17b41801197a149ca93654499ea3dafeb0a8d493285c2df73290dfb7e61f870f17b41801197a149ca93654499ea3dafe";
-    let blob = hex::decode(txstr).unwrap();
+    #[async_test]
+    #[serial]
+    async fn version() {
+        init_logging();
 
-    // First, get public key
-    let addr = app.address(0, 0, 0, false).unwrap();
-    let public_key = PublicKey::from_bytes(&addr.public_key).unwrap();
+        let transport = APDUTransport {
+            transport_wrapper: ledger::TransportNativeHID::new().unwrap(),
+        };
+        let app = LedgerApp::new(transport);
 
-    match app.sign(0, 0, 0, &blob) {
-        Ok(reply_signature) => {
+        let resp = app.get_version().await.unwrap();
 
-            // we need to remove first byte (there is a new prepended byte)
-            let signature = Signature::from_bytes(&reply_signature[1..]).unwrap();
+        println!("mode  {}", resp.mode);
+        println!("major {}", resp.major);
+        println!("minor {}", resp.minor);
+        println!("patch {}", resp.patch);
 
-            if blob.len() > 256 {
-                // When the blob is > 256, the digest is signed
-                let message_hashed = Params::new()
-                    .hash_length(64)
-                    .to_state()
-                    .update(&blob)
-                    .finalize();
+        assert_eq!(resp.major, 0x00);
+        assert!(resp.minor >= 0x04);
+    }
 
-                assert!(public_key.verify((&message_hashed).as_ref(), &signature).is_ok());
-            } else {
-                assert!(public_key.verify(&blob, &signature).is_ok());
-            }
-        }
-        Err(e) => {
-            println!("Err {:#?}", e);
-            panic!();
+    #[async_test]
+    #[serial]
+    async fn address() {
+        init_logging();
+
+        let transport = APDUTransport {
+            transport_wrapper: ledger::TransportNativeHID::new().unwrap(),
+        };
+        let app = LedgerApp::new(transport);
+
+        let path = BIP44Path::from_string("m/44'/434'/0/0/5").unwrap();
+        let resp = app.get_address(&path, false).await.unwrap();
+
+        assert_eq!(resp.public_key.len(), 32);
+        assert_eq!(
+            hex::encode(resp.public_key),
+            "d280b24dface41f31006e5a2783971fc5a66c862dd7d08f97603d2902b75e47a"
+        );
+        assert_eq!(resp.ss58, "HLKocKgeGjpXkGJU6VACtTYJK4ApTCfcGRw51E5jWntcsXv");
+
+        println!("Public Key   {:?}", hex::encode(resp.public_key));
+        println!("Address SS58 {:?}", resp.ss58);
+    }
+
+    #[async_test]
+    #[serial]
+    async fn show_address() {
+        init_logging();
+
+        let transport = APDUTransport {
+            transport_wrapper: ledger::TransportNativeHID::new().unwrap(),
+        };
+        let app = LedgerApp::new(transport);
+
+        let path = BIP44Path::from_string("m/44'/434'/0/0/5").unwrap();
+        let resp = app.get_address(&path, true).await.unwrap();
+
+        assert_eq!(resp.public_key.len(), 32);
+        assert_eq!(
+            hex::encode(resp.public_key),
+            "d280b24dface41f31006e5a2783971fc5a66c862dd7d08f97603d2902b75e47a"
+        );
+        assert_eq!(resp.ss58, "HLKocKgeGjpXkGJU6VACtTYJK4ApTCfcGRw51E5jWntcsXv");
+
+        println!("Public Key   {:?}", hex::encode(resp.public_key));
+        println!("Address SS58 {:?}", resp.ss58);
+    }
+
+    #[async_test]
+    #[serial]
+    async fn sign_empty() {
+        init_logging();
+
+        let transport = APDUTransport {
+            transport_wrapper: ledger::TransportNativeHID::new().unwrap(),
+        };
+        let app = LedgerApp::new(transport);
+
+        let path = BIP44Path::from_string("m/44'/434'/0/0/5").unwrap();
+        let some_message0 = b"";
+
+        let response = app.sign(&path, some_message0).await;
+        assert!(response.is_err());
+        assert!(matches!(
+            response.err().unwrap(),
+            LedgerError::InvalidEmptyMessage
+        ));
+    }
+
+    #[async_test]
+    #[serial]
+    async fn sign_verify() {
+        init_logging();
+
+        let transport = APDUTransport {
+            transport_wrapper: ledger::TransportNativeHID::new().unwrap(),
+        };
+        let app = LedgerApp::new(transport);
+
+        let path = BIP44Path::from_string("m/44'/434'/0/0/5").unwrap();
+        let txstr = "0000b30d1caed503000b63ce64c10c0526040000b0a8d493285c2df73290dfb7e61f870f17b41801197a149ca93654499ea3dafeb0a8d493285c2df73290dfb7e61f870f17b41801197a149ca93654499ea3dafe";
+        let blob = hex::decode(txstr).unwrap();
+
+        // First, get public key
+        let addr = app.get_address(&path, false).await.unwrap();
+        let public_key = PublicKey::from_bytes(&addr.public_key).unwrap();
+
+        let response = app.sign(&path, &blob).await.unwrap();
+
+        // we need to remove first byte (there is a new prepended byte, defining the signature type)
+        let signature = Signature::from_bytes(&response[1..]).unwrap();
+
+        if blob.len() > 256 {
+            // When the blob is > 256, the digest is signed
+            let message_hashed = Params::new()
+                .hash_length(64)
+                .to_state()
+                .update(&blob)
+                .finalize();
+
+            assert!(public_key
+                .verify((&message_hashed).as_ref(), &signature)
+                .is_ok());
+        } else {
+            assert!(public_key.verify(&blob, &signature).is_ok());
         }
     }
 }

@@ -1,5 +1,5 @@
 /*******************************************************************************
-*   (c) 2020 ZondaX GmbH
+*   (c) 2020 Zondax GmbH
 *
 *  Licensed under the Apache License, Version 2.0 (the "License");
 *  you may not use this file except in compliance with the License.
@@ -16,16 +16,19 @@
 #![deny(warnings, trivial_casts, trivial_numeric_casts)]
 #![deny(unused_import_braces, unused_qualifications)]
 #![deny(missing_docs)]
-#![doc(html_root_url = "https://docs.rs/ledger-kusama")]
+#![doc(html_root_url = "https://docs.rs/ledger-kusama/0.1.0")]
 
 pub const CLA: u8 = 0x99;
 pub const INS_GET_VERSION: u8 = 0x00;
 pub const INS_GET_ADDR_ED25519: u8 = 0x01;
 pub const INS_SIGN_ED25519: u8 = 0x02;
-
-pub const BIP44_0: u32 = 0x2c;
-pub const BIP44_1: u32 = 434;
 pub const USER_MESSAGE_CHUNK_SIZE: usize = 250;
+
+pub const CLA_APP_INFO: u8 = 0xb0;
+pub const INS_APP_INFO: u8 = 0x01;
+
+pub const CLA_DEVICE_INFO: u8 = 0xe0;
+pub const INS_DEVICE_INFO: u8 = 0x01;
 
 pub enum PayloadType {
     Init = 0x00,
@@ -33,6 +36,5 @@ pub enum PayloadType {
     Last = 0x02,
 }
 
-pub enum APDUErrors {
-    NoError = 0x9000,
-}
+/// Public Key Length
+pub(crate) const PK_LEN: usize = 32;
