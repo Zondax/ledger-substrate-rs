@@ -55,7 +55,7 @@ impl KusamaApp {
     }
 
     fn cla(&self) -> u8 {
-        return CLA;
+        CLA
     }
 
     /// Retrieve the app version

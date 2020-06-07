@@ -56,9 +56,10 @@ mod integration_tests {
         println!("major {}", resp.major);
         println!("minor {}", resp.minor);
         println!("patch {}", resp.patch);
+        println!("locked {}", resp.locked);
 
-        assert_eq!(resp.major, 0x00);
-        assert!(resp.minor >= 0x04);
+        assert!(resp.major == 0);
+        assert!(resp.minor >= 1000);
     }
 
     #[async_test]
@@ -77,9 +78,9 @@ mod integration_tests {
         assert_eq!(resp.public_key.len(), 32);
         assert_eq!(
             hex::encode(resp.public_key),
-            "d280b24dface41f31006e5a2783971fc5a66c862dd7d08f97603d2902b75e47a"
+            "8f1a396a3181a45b84f82e505400cb752922d6f11a2897e71c6d939c2e91fcab"
         );
-        assert_eq!(resp.ss58, "HLKocKgeGjpXkGJU6VACtTYJK4ApTCfcGRw51E5jWntcsXv");
+        assert_eq!(resp.ss58, "Fox9yUWUbBeGzKymMB2rKyYBHoJ3tfTNjhZC77xrQE2aHsr");
 
         println!("Public Key   {:?}", hex::encode(resp.public_key));
         println!("Address SS58 {:?}", resp.ss58);
@@ -95,15 +96,15 @@ mod integration_tests {
         };
         let app = KusamaApp::new(transport);
 
-        let path = BIP44Path::from_string("m/44'/434'/0/0/5").unwrap();
+        let path = BIP44Path::from_string("m/44'/434'/0/0/0").unwrap();
         let resp = app.get_address(&path, true).await.unwrap();
 
         assert_eq!(resp.public_key.len(), 32);
         assert_eq!(
             hex::encode(resp.public_key),
-            "d280b24dface41f31006e5a2783971fc5a66c862dd7d08f97603d2902b75e47a"
+            "9aacddd17054070103ad37ee76610d1adaa7f8e0d02b76fb91391eec8a2470af"
         );
-        assert_eq!(resp.ss58, "HLKocKgeGjpXkGJU6VACtTYJK4ApTCfcGRw51E5jWntcsXv");
+        assert_eq!(resp.ss58, "G58F7QUjgT273AaNScoXhpKVjCcnDvCcbyucDZiPEDmVD9d");
 
         println!("Public Key   {:?}", hex::encode(resp.public_key));
         println!("Address SS58 {:?}", resp.ss58);
