@@ -30,9 +30,6 @@
 #![doc(html_root_url = "https://docs.rs/ledger-kusama/0.1.0")]
 
 mod app;
-/// Ledger related errors
-mod errors;
-mod params;
 
 pub use ledger_transport::errors::TransportError;
 #[cfg(target_arch = "wasm32")]
@@ -41,4 +38,4 @@ pub use ledger_transport::{APDUAnswer, APDUCommand, APDUErrorCodes, APDUTranspor
 
 /// Kusama app
 pub use app::KusamaApp;
-pub use errors::LedgerError;
+pub use ledger_zondax_generic::LedgerError;

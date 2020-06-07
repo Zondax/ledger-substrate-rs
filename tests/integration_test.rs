@@ -34,7 +34,6 @@ mod integration_tests {
     use futures_await_test::async_test;
     use ledger_kusama::APDUTransport;
     use ledger_kusama::KusamaApp;
-    use ledger_kusama::LedgerError;
     use zx_bip44::BIP44Path;
 
     fn init_logging() {
@@ -127,7 +126,7 @@ mod integration_tests {
         assert!(response.is_err());
         assert!(matches!(
             response.err().unwrap(),
-            LedgerError::InvalidEmptyMessage
+            ledger_kusama::LedgerError::InvalidEmptyMessage
         ));
     }
 
