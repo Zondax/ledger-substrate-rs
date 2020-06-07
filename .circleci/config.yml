@@ -53,5 +53,4 @@ workflows:
   build_all:
     jobs:
       - build
-      - checks
       - tests

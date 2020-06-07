@@ -1,5 +1,5 @@
 /*******************************************************************************
-*   (c) 2018, 2019 ZondaX GmbH
+*   (c) 2018-2020 Zondax GmbH
 *
 *  Licensed under the Apache License, Version 2.0 (the "License");
 *  you may not use this file except in compliance with the License.
@@ -13,112 +13,160 @@
 *  See the License for the specific language governing permissions and
 *  limitations under the License.
 ********************************************************************************/
-// Integration tests
-
 #![deny(warnings, trivial_casts, trivial_numeric_casts)]
 #![deny(unused_import_braces, unused_qualifications)]
 #![deny(missing_docs)]
 
 extern crate ed25519_dalek;
 extern crate hex;
-extern crate ledger_kusama;
 #[macro_use]
 extern crate matches;
 extern crate sha2;
 #[macro_use]
 extern crate serial_test;
+extern crate ledger_kusama;
 
-use ledger_kusama::{KusamaApp, LedgerAppError};
+#[cfg(test)]
+mod integration_tests {
+    use blake2b_simd::Params;
+    use ed25519_dalek::PublicKey;
+    use ed25519_dalek::Signature;
+    use futures_await_test::async_test;
+    use ledger_kusama::APDUTransport;
+    use ledger_kusama::KusamaApp;
+    use zx_bip44::BIP44Path;
 
-#[test]
-#[serial]
-fn version() {
-    let app = KusamaApp::connect().unwrap();
-
-    let resp = app.version();
-
-    match resp {
-        Ok(version) => {
-            println!("mode  {}", version.mode);
-            println!("major {}", version.major);
-            println!("minor {}", version.minor);
-            println!("patch {}", version.patch);
-
-            assert_eq!(version.major, 0x00);
-            assert!(version.minor >= 0x04);
-        }
-        Err(err) => {
-            eprintln!("Error: {:?}", err);
-        }
+    fn init_logging() {
+        let _ = env_logger::builder().is_test(true).try_init();
     }
-}
 
-#[test]
-#[serial]
-fn address() {
-    let app = KusamaApp::connect().unwrap();
-    let resp = app.address(0, 0, 5, false);
+    #[async_test]
+    #[serial]
+    async fn version() {
+        init_logging();
 
-    match resp {
-        Ok(addr) => {
-            assert_eq!(addr.public_key.len(), 32);
-            assert_eq!(
-                hex::encode(addr.public_key),
-                "8d16d62802ca55326ec52bf76a8543b90e2aba5bcf6cd195c0d6fc1ef38fa1b3"
-            );
-            assert_eq!(addr.ss58, "FmK43tjzFGT9F68Sj9EvW6rwBQUAVuA9wNQaYxGLvfcCAxS");
+        let transport = APDUTransport {
+            transport_wrapper: ledger::TransportNativeHID::new().unwrap(),
+        };
+        let app = KusamaApp::new(transport);
 
-            println!("Public Key   {:?}", hex::encode(addr.public_key));
-            println!("Address SS58 {:?}", addr.ss58);
-        }
-        Err(err) => {
-            eprintln!("Error: {:?}", err);
-            panic!()
-        }
+        let resp = app.get_version().await.unwrap();
+
+        println!("mode  {}", resp.mode);
+        println!("major {}", resp.major);
+        println!("minor {}", resp.minor);
+        println!("patch {}", resp.patch);
+        println!("locked {}", resp.locked);
+
+        assert!(resp.major == 0);
+        assert!(resp.minor >= 1000);
     }
-}
 
-#[test]
-#[serial]
-fn sign_empty() {
-    let app = KusamaApp::connect().unwrap();
+    #[async_test]
+    #[serial]
+    async fn address() {
+        init_logging();
 
-    let some_message0 = b"";
+        let transport = APDUTransport {
+            transport_wrapper: ledger::TransportNativeHID::new().unwrap(),
+        };
+        let app = KusamaApp::new(transport);
 
-    let signature = app.sign(0, 0, 0, some_message0);
-    assert!(signature.is_err());
-    assert!(matches!(
-        signature.err().unwrap(),
-        LedgerAppError::InvalidEmptyMessage
-    ));
-}
+        let path = BIP44Path::from_string("m/44'/434'/0/0/5").unwrap();
+        let resp = app.get_address(&path, false).await.unwrap();
 
-#[test]
-#[serial]
-fn sign_verify() {
-    let app = KusamaApp::connect().unwrap();
+        assert_eq!(resp.public_key.len(), 32);
+        assert_eq!(
+            hex::encode(resp.public_key),
+            "8f1a396a3181a45b84f82e505400cb752922d6f11a2897e71c6d939c2e91fcab"
+        );
+        assert_eq!(resp.ss58, "Fox9yUWUbBeGzKymMB2rKyYBHoJ3tfTNjhZC77xrQE2aHsr");
 
-    let txstr = "060904d503910133158139ae28a3dfaac5fe1560a5e9e05cc8010000fe06016e907605fb7ae9e09efc7237e57d31a32096a65d14f56524f37b909ef75390da7afac52b00d971bf76d6f513b138862eba20ed49cfd7580affaa9d3dba";
-    let blob = hex::decode(txstr).unwrap();
+        println!("Public Key   {:?}", hex::encode(resp.public_key));
+        println!("Address SS58 {:?}", resp.ss58);
+    }
 
-    match app.sign(0, 0, 0, &blob) {
-        Ok(sig) => {
-            use ed25519_dalek::PublicKey;
-            use ed25519_dalek::Signature;
+    #[async_test]
+    #[serial]
+    async fn show_address() {
+        init_logging();
 
-            println!("{:#?}", sig.to_vec());
+        let transport = APDUTransport {
+            transport_wrapper: ledger::TransportNativeHID::new().unwrap(),
+        };
+        let app = KusamaApp::new(transport);
 
-            // First, get public key
-            let addr = app.address(0, 0, 0, false).unwrap();
-            let public_key = PublicKey::from_bytes(&addr.public_key).unwrap();
-            let signature = Signature::from_bytes(&sig).unwrap();
+        let path = BIP44Path::from_string("m/44'/434'/0/0/0").unwrap();
+        let resp = app.get_address(&path, true).await.unwrap();
 
-            // Verify signature
+        assert_eq!(resp.public_key.len(), 32);
+        assert_eq!(
+            hex::encode(resp.public_key),
+            "9aacddd17054070103ad37ee76610d1adaa7f8e0d02b76fb91391eec8a2470af"
+        );
+        assert_eq!(resp.ss58, "G58F7QUjgT273AaNScoXhpKVjCcnDvCcbyucDZiPEDmVD9d");
+
+        println!("Public Key   {:?}", hex::encode(resp.public_key));
+        println!("Address SS58 {:?}", resp.ss58);
+    }
+
+    #[async_test]
+    #[serial]
+    async fn sign_empty() {
+        init_logging();
+
+        let transport = APDUTransport {
+            transport_wrapper: ledger::TransportNativeHID::new().unwrap(),
+        };
+        let app = KusamaApp::new(transport);
+
+        let path = BIP44Path::from_string("m/44'/434'/0/0/5").unwrap();
+        let some_message0 = b"";
+
+        let response = app.sign(&path, some_message0).await;
+        assert!(response.is_err());
+        assert!(matches!(
+            response.err().unwrap(),
+            ledger_kusama::LedgerError::InvalidEmptyMessage
+        ));
+    }
+
+    #[async_test]
+    #[serial]
+    async fn sign_verify() {
+        init_logging();
+
+        let transport = APDUTransport {
+            transport_wrapper: ledger::TransportNativeHID::new().unwrap(),
+        };
+        let app = KusamaApp::new(transport);
+
+        let path = BIP44Path::from_string("m/44'/434'/0/0/5").unwrap();
+        let txstr = "0000b30d1caed503000b63ce64c10c0526040000b0a8d493285c2df73290dfb7e61f870f17b41801197a149ca93654499ea3dafeb0a8d493285c2df73290dfb7e61f870f17b41801197a149ca93654499ea3dafe";
+        let blob = hex::decode(txstr).unwrap();
+
+        // First, get public key
+        let addr = app.get_address(&path, false).await.unwrap();
+        let public_key = PublicKey::from_bytes(&addr.public_key).unwrap();
+
+        let response = app.sign(&path, &blob).await.unwrap();
+
+        // we need to remove first byte (there is a new prepended byte, defining the signature type)
+        let signature = Signature::from_bytes(&response[1..]).unwrap();
+
+        if blob.len() > 256 {
+            // When the blob is > 256, the digest is signed
+            let message_hashed = Params::new()
+                .hash_length(64)
+                .to_state()
+                .update(&blob)
+                .finalize();
+
+            assert!(public_key
+                .verify((&message_hashed).as_ref(), &signature)
+                .is_ok());
+        } else {
             assert!(public_key.verify(&blob, &signature).is_ok());
-        }
-        Err(e) => {
-            println!("Err {:#?}", e);
-            panic!();
         }
     }
 }
