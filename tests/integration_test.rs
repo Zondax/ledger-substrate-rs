@@ -58,7 +58,7 @@ mod integration_tests {
         println!("patch {}", resp.patch);
         println!("locked {}", resp.locked);
 
-        assert!(resp.major == 0);
+        assert!(resp.major > 0);
         assert!(resp.minor >= 1000);
     }
 
@@ -142,7 +142,7 @@ mod integration_tests {
         let app = KusamaApp::new(transport);
 
         let path = BIP44Path::from_string("m/44'/434'/0/0/5").unwrap();
-        let txstr = "0000b30d1caed503000b63ce64c10c0526040000b0a8d493285c2df73290dfb7e61f870f17b41801197a149ca93654499ea3dafeb0a8d493285c2df73290dfb7e61f870f17b41801197a149ca93654499ea3dafe";
+        let txstr = "0400f68ad810c8070fdacded5e85661439ab61010c2da28b645797d45d22a2af837800d503008ed73e0dd807000001000000b0a8d493285c2df73290dfb7e61f870f17b41801197a149ca93654499ea3dafeb0a8d493285c2df73290dfb7e61f870f17b41801197a149ca93654499ea3dafe";
         let blob = hex::decode(txstr).unwrap();
 
         // First, get public key
