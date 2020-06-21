@@ -24,7 +24,7 @@ extern crate matches;
 extern crate sha2;
 #[macro_use]
 extern crate serial_test;
-extern crate ledger_kusama;
+extern crate ledger_substrate;
 
 #[cfg(test)]
 mod integration_tests {
@@ -32,8 +32,7 @@ mod integration_tests {
     use ed25519_dalek::PublicKey;
     use ed25519_dalek::Signature;
     use futures_await_test::async_test;
-    use ledger_kusama::APDUTransport;
-    use ledger_kusama::KusamaApp;
+    use ledger_substrate::{APDUTransport, new_kusama_app};
     use zx_bip44::BIP44Path;
 
     fn init_logging() {
@@ -48,7 +47,7 @@ mod integration_tests {
         let transport = APDUTransport {
             transport_wrapper: ledger::TransportNativeHID::new().unwrap(),
         };
-        let app = KusamaApp::new(transport);
+        let app = new_kusama_app(transport);
 
         let resp = app.get_version().await.unwrap();
 
@@ -70,7 +69,7 @@ mod integration_tests {
         let transport = APDUTransport {
             transport_wrapper: ledger::TransportNativeHID::new().unwrap(),
         };
-        let app = KusamaApp::new(transport);
+        let app = new_kusama_app(transport);
 
         let path = BIP44Path::from_string("m/44'/434'/0/0/5").unwrap();
         let resp = app.get_address(&path, false).await.unwrap();
@@ -94,7 +93,7 @@ mod integration_tests {
         let transport = APDUTransport {
             transport_wrapper: ledger::TransportNativeHID::new().unwrap(),
         };
-        let app = KusamaApp::new(transport);
+        let app = new_kusama_app(transport);
 
         let path = BIP44Path::from_string("m/44'/434'/0/0/0").unwrap();
         let resp = app.get_address(&path, true).await.unwrap();
@@ -118,7 +117,7 @@ mod integration_tests {
         let transport = APDUTransport {
             transport_wrapper: ledger::TransportNativeHID::new().unwrap(),
         };
-        let app = KusamaApp::new(transport);
+        let app = new_kusama_app(transport);
 
         let path = BIP44Path::from_string("m/44'/434'/0/0/5").unwrap();
         let some_message0 = b"";
@@ -127,7 +126,7 @@ mod integration_tests {
         assert!(response.is_err());
         assert!(matches!(
             response.err().unwrap(),
-            ledger_kusama::LedgerError::InvalidEmptyMessage
+            ledger_substrate::LedgerError::InvalidEmptyMessage
         ));
     }
 
@@ -139,7 +138,7 @@ mod integration_tests {
         let transport = APDUTransport {
             transport_wrapper: ledger::TransportNativeHID::new().unwrap(),
         };
-        let app = KusamaApp::new(transport);
+        let app = new_kusama_app(transport);
 
         let path = BIP44Path::from_string("m/44'/434'/0/0/5").unwrap();
         let txstr = "0400f68ad810c8070fdacded5e85661439ab61010c2da28b645797d45d22a2af837800d503008ed73e0dd807000001000000b0a8d493285c2df73290dfb7e61f870f17b41801197a149ca93654499ea3dafeb0a8d493285c2df73290dfb7e61f870f17b41801197a149ca93654499ea3dafe";

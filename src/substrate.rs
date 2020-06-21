@@ -24,20 +24,20 @@ use ledger_zondax_generic::{AppInfo, ChunkPayloadType, DeviceInfo, LedgerError, 
 use std::str;
 use zx_bip44::BIP44Path;
 
-const CLA: u8 = 0x99;
 const INS_GET_ADDR_ED25519: u8 = 0x01;
 const INS_SIGN_ED25519: u8 = 0x02;
 
 const PK_LEN: usize = 32;
 
 /// Ledger App
-pub struct KusamaApp {
-    apdu_transport: APDUTransport,
+pub struct SubstrateApp {
+    pub(crate) apdu_transport: APDUTransport,
+    pub(crate) cla: u8,
 }
 
 type PublicKey = [u8; PK_LEN];
 
-/// Kusama address (includes pubkey and the corresponding ss58 address)
+/// Substrate address (includes pubkey and the corresponding ss58 address)
 #[allow(dead_code)]
 pub struct Address {
     /// Public Key
@@ -48,19 +48,15 @@ pub struct Address {
 
 type Signature = [u8; 65];
 
-impl KusamaApp {
+impl SubstrateApp {
     /// Connect to the Ledger App
-    pub fn new(apdu_transport: APDUTransport) -> Self {
-        KusamaApp { apdu_transport }
-    }
-
-    fn cla(&self) -> u8 {
-        CLA
+    pub fn new(apdu_transport: APDUTransport, cla: u8) -> Self {
+        SubstrateApp { apdu_transport, cla }
     }
 
     /// Retrieve the app version
     pub async fn get_version(&self) -> Result<Version, LedgerError> {
-        ledger_zondax_generic::get_version(self.cla(), &self.apdu_transport).await
+        ledger_zondax_generic::get_version(self.cla, &self.apdu_transport).await
     }
 
     /// Retrieve the app info
@@ -83,7 +79,7 @@ impl KusamaApp {
         let p1 = if require_confirmation { 1 } else { 0 };
 
         let command = APDUCommand {
-            cla: self.cla(),
+            cla: self.cla,
             ins: INS_GET_ADDR_ED25519,
             p1,
             p2: 0x00,
@@ -121,7 +117,7 @@ impl KusamaApp {
     pub async fn sign(&self, path: &BIP44Path, message: &[u8]) -> Result<Signature, LedgerError> {
         let serialized_path = path.serialize();
         let start_command = APDUCommand {
-            cla: self.cla(),
+            cla: self.cla,
             ins: INS_SIGN_ED25519,
             p1: ChunkPayloadType::Init as u8,
             p2: 0x00,
