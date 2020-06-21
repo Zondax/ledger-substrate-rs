@@ -29,13 +29,33 @@
 #![deny(missing_docs)]
 #![doc(html_root_url = "https://docs.rs/ledger-kusama/0.1.0")]
 
-mod app;
+mod substrate;
 
 pub use ledger_transport::errors::TransportError;
 #[cfg(target_arch = "wasm32")]
 pub use ledger_transport::TransportWrapperTrait;
 pub use ledger_transport::{APDUAnswer, APDUCommand, APDUErrorCodes, APDUTransport};
 
-/// Kusama app
-pub use app::KusamaApp;
+/// Ledger related errors
 pub use ledger_zondax_generic::LedgerError;
+/// Substrate app
+pub use substrate::SubstrateApp;
+
+const CLA_POLKADOT: u8 = 0x90;
+const CLA_KUSAMA: u8 = 0x99;
+
+/// Create a new connection to a polkadot app
+pub fn new_polkadot_app(apdu_transport: APDUTransport) -> SubstrateApp {
+    SubstrateApp {
+        apdu_transport,
+        cla: CLA_POLKADOT,
+    }
+}
+
+/// Create a new connection to a kusama app
+pub fn new_kusama_app(apdu_transport: APDUTransport) -> SubstrateApp {
+    SubstrateApp {
+        apdu_transport,
+        cla: CLA_KUSAMA,
+    }
+}

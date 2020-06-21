@@ -1,6 +1,6 @@
 # Rust library for Ledger Kusama app
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![CircleCI](https://circleci.com/gh/Zondax/ledger-kusama-rs.svg?style=shield)](https://circleci.com/gh/Zondax/ledger-kusama-rs)
+[![CircleCI](https://circleci.com/gh/Zondax/ledger-substrate-rs.svg?style=shield)](https://circleci.com/gh/Zondax/ledger-substrate-rs)
 
 This package provides a basic Rust client library to communicate with the Kusama App running in a Ledger Nano S/X devices
 
