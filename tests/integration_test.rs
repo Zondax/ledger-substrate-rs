@@ -32,7 +32,7 @@ mod integration_tests {
     use ed25519_dalek::PublicKey;
     use ed25519_dalek::Signature;
     use futures_await_test::async_test;
-    use ledger_substrate::{APDUTransport, new_kusama_app};
+    use ledger_substrate::{new_kusama_app, APDUTransport};
     use zx_bip44::BIP44Path;
 
     fn init_logging() {

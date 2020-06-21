@@ -51,7 +51,10 @@ type Signature = [u8; 65];
 impl SubstrateApp {
     /// Connect to the Ledger App
     pub fn new(apdu_transport: APDUTransport, cla: u8) -> Self {
-        SubstrateApp { apdu_transport, cla }
+        SubstrateApp {
+            apdu_transport,
+            cla,
+        }
     }
 
     /// Retrieve the app version
