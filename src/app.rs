@@ -117,7 +117,7 @@ impl KusamaApp {
         }
     }
 
-    /// Sign a transaction
+    /// Sign a transaction. The returned `[u8; 65]` is a SCALE-encoded MultiSignature.
     pub async fn sign(&self, path: &BIP44Path, message: &[u8]) -> Result<Signature, LedgerError> {
         let serialized_path = path.serialize();
         let start_command = APDUCommand {
