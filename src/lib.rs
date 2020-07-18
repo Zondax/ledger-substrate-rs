@@ -13,21 +13,21 @@
 *  See the License for the specific language governing permissions and
 *  limitations under the License.
 ********************************************************************************/
-//! Support library for Kusama Ledger Nano S/X apps
+//! Support library for Substrate Ledger Nano S/X apps
 
 #![cfg_attr(
     not(test),
     deny(
-        clippy::option_unwrap_used,
-        clippy::option_expect_used,
-        clippy::result_unwrap_used,
-        clippy::result_expect_used,
+        clippy::unwrap_used,
+        clippy::expect_used,
+        clippy::unwrap_used,
+        clippy::expect_used,
     )
 )]
 #![deny(warnings, trivial_casts, trivial_numeric_casts)]
 #![deny(unused_import_braces, unused_qualifications)]
 #![deny(missing_docs)]
-#![doc(html_root_url = "https://docs.rs/ledger-kusama/0.1.0")]
+#![doc(html_root_url = "https://docs.rs/ledger-substrate/0.1.0")]
 
 mod substrate;
 
@@ -37,9 +37,11 @@ pub use ledger_transport::TransportWrapperTrait;
 pub use ledger_transport::{APDUAnswer, APDUCommand, APDUErrorCodes, APDUTransport};
 
 /// Ledger related errors
-pub use ledger_zondax_generic::LedgerError;
+pub use ledger_zondax_generic::LedgerAppError;
 /// Substrate app
 pub use substrate::SubstrateApp;
+
+pub use substrate::AppMode;
 
 const CLA_POLKADOT: u8 = 0x90;
 const CLA_KUSAMA: u8 = 0x99;

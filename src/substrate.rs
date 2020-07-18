@@ -20,12 +20,20 @@
 #![deny(missing_docs)]
 
 use ledger_transport::{APDUCommand, APDUErrorCodes, APDUTransport};
-use ledger_zondax_generic::{AppInfo, ChunkPayloadType, DeviceInfo, LedgerError, Version};
+use ledger_zondax_generic::{
+    map_apdu_error_description, AppInfo, ChunkPayloadType, DeviceInfo, LedgerAppError, Version,
+};
+use log::info;
 use std::str;
 use zx_bip44::BIP44Path;
 
 const INS_GET_ADDR_ED25519: u8 = 0x01;
 const INS_SIGN_ED25519: u8 = 0x02;
+
+const INS_ALLOWLIST_GET_PUBKEY: u8 = 0x90;
+const INS_ALLOWLIST_SET_PUBKEY: u8 = 0x91;
+const INS_ALLOWLIST_GET_HASH: u8 = 0x92;
+const INS_ALLOWLIST_UPLOAD: u8 = 0x93;
 
 const PK_LEN: usize = 32;
 
@@ -35,10 +43,21 @@ pub struct SubstrateApp {
     pub(crate) cla: u8,
 }
 
+/// Ledger application mode
+pub enum AppMode {
+    /// Standard Mode - Normal App
+    Standard = 0,
+    /// Testing Mode - Only for testing purposes
+    Testing = 1,
+    /// Restricted Mode - Ledgeracio Variant
+    Ledgeracio = 2,
+}
+
 type PublicKey = [u8; PK_LEN];
 
+type AllowlistHash = [u8; 32];
+
 /// Substrate address (includes pubkey and the corresponding ss58 address)
-#[allow(dead_code)]
 pub struct Address {
     /// Public Key
     pub public_key: PublicKey,
@@ -58,17 +77,17 @@ impl SubstrateApp {
     }
 
     /// Retrieve the app version
-    pub async fn get_version(&self) -> Result<Version, LedgerError> {
+    pub async fn get_version(&self) -> Result<Version, LedgerAppError> {
         ledger_zondax_generic::get_version(self.cla, &self.apdu_transport).await
     }
 
     /// Retrieve the app info
-    pub async fn get_app_info(&self) -> Result<AppInfo, LedgerError> {
+    pub async fn get_app_info(&self) -> Result<AppInfo, LedgerAppError> {
         ledger_zondax_generic::get_app_info(&self.apdu_transport).await
     }
 
     /// Retrieve the device info
-    pub async fn get_device_info(&self) -> Result<DeviceInfo, LedgerError> {
+    pub async fn get_device_info(&self) -> Result<DeviceInfo, LedgerAppError> {
         ledger_zondax_generic::get_device_info(&self.apdu_transport).await
     }
 
@@ -77,7 +96,7 @@ impl SubstrateApp {
         &self,
         path: &BIP44Path,
         require_confirmation: bool,
-    ) -> Result<Address, LedgerError> {
+    ) -> Result<Address, LedgerAppError> {
         let serialized_path = path.serialize();
         let p1 = if require_confirmation { 1 } else { 0 };
 
@@ -92,11 +111,11 @@ impl SubstrateApp {
         match self.apdu_transport.exchange(&command).await {
             Ok(response) => {
                 if response.retcode != APDUErrorCodes::NoError as u16 {
-                    println!("WARNING: retcode={:X?}", response.retcode);
+                    info!("get_address: retcode={:X?}", response.retcode);
                 }
 
                 if response.data.len() < PK_LEN {
-                    return Err(LedgerError::InvalidPK);
+                    return Err(LedgerAppError::InvalidPK);
                 }
 
                 let mut address = Address {
@@ -105,19 +124,23 @@ impl SubstrateApp {
                 };
                 address.public_key.copy_from_slice(&response.data[..32]);
                 address.ss58 = str::from_utf8(&response.data[32..])
-                    .map_err(|_e| LedgerError::Utf8)?
+                    .map_err(|_e| LedgerAppError::Utf8)?
                     .to_owned();
 
                 Ok(address)
             }
 
             // FIXME: Improve
-            Err(e) => Err(LedgerError::TransportError(e)),
+            Err(e) => Err(LedgerAppError::TransportError(e)),
         }
     }
 
     /// Sign a transaction. The returned `[u8; 65]` is a SCALE-encoded MultiSignature.
-    pub async fn sign(&self, path: &BIP44Path, message: &[u8]) -> Result<Signature, LedgerError> {
+    pub async fn sign(
+        &self,
+        path: &BIP44Path,
+        message: &[u8],
+    ) -> Result<Signature, LedgerAppError> {
         let serialized_path = path.serialize();
         let start_command = APDUCommand {
             cla: self.cla,
@@ -132,17 +155,126 @@ impl SubstrateApp {
                 .await?;
 
         if response.data.is_empty() && response.retcode == APDUErrorCodes::NoError as u16 {
-            return Err(LedgerError::NoSignature);
+            return Err(LedgerAppError::NoSignature);
         }
 
         // Last response should contain the answer
         if response.data.len() != 65 {
-            return Err(LedgerError::InvalidSignature);
+            return Err(LedgerAppError::InvalidSignature);
         }
 
         let mut sig: Signature = [0u8; 65];
         sig.copy_from_slice(&response.data[..65]);
 
         Ok(sig)
+    }
+
+    /// Retrieves the public key and address
+    pub async fn allowlist_get_pubkey(&self) -> Result<PublicKey, LedgerAppError> {
+        let command = APDUCommand {
+            cla: self.cla,
+            ins: INS_ALLOWLIST_GET_PUBKEY,
+            p1: 0x00,
+            p2: 0x00,
+            data: vec![],
+        };
+
+        match self.apdu_transport.exchange(&command).await {
+            Ok(response) => {
+                if response.retcode != APDUErrorCodes::NoError as u16 {
+                    info!("allowlist_get_pubkey: retcode={:X?}", response.retcode);
+                }
+
+                if response.data.len() < PK_LEN {
+                    return Err(LedgerAppError::InvalidPK);
+                }
+
+                let mut public_key = PublicKey::default();
+                public_key.copy_from_slice(&response.data[..32]);
+
+                Ok(public_key)
+            }
+
+            Err(e) => Err(LedgerAppError::TransportError(e)),
+        }
+    }
+
+    /// Retrieves the public key and address
+    pub async fn allowlist_set_pubkey(&self, pk: &PublicKey) -> Result<(), LedgerAppError> {
+        let command = APDUCommand {
+            cla: self.cla,
+            ins: INS_ALLOWLIST_SET_PUBKEY,
+            p1: 0x00,
+            p2: 0x00,
+            data: pk.to_vec(),
+        };
+
+        let answer = self.apdu_transport.exchange(&command).await;
+
+        match answer {
+            Ok(response) => {
+                if response.retcode != APDUErrorCodes::NoError as u16 {
+                    info!("allowlist_set_pubkey: retcode={:X?}", response.retcode);
+                }
+
+                Ok(())
+            }
+
+            Err(e) => Err(LedgerAppError::TransportError(e)),
+        }
+    }
+
+    /// Retrieves the public key and address
+    pub async fn allowlist_get_hash(&self) -> Result<AllowlistHash, LedgerAppError> {
+        let command = APDUCommand {
+            cla: self.cla,
+            ins: INS_ALLOWLIST_GET_HASH,
+            p1: 0x00,
+            p2: 0x00,
+            data: vec![],
+        };
+
+        match self.apdu_transport.exchange(&command).await {
+            Ok(response) => {
+                if response.retcode != APDUErrorCodes::NoError as u16 {
+                    info!("allowlist_get_hash: retcode={:X?}", response.retcode);
+                }
+
+                if response.data.len() < PK_LEN {
+                    return Err(LedgerAppError::InvalidPK);
+                }
+
+                let mut hash = AllowlistHash::default();
+                hash.copy_from_slice(&response.data[..32]);
+
+                Ok(hash)
+            }
+
+            Err(e) => Err(LedgerAppError::TransportError(e)),
+        }
+    }
+
+    /// Uploads an allow list to the device
+    pub async fn allowlist_upload(&self, allowlist: &[u8]) -> Result<(), LedgerAppError> {
+        let start_command = APDUCommand {
+            cla: self.cla,
+            ins: INS_ALLOWLIST_UPLOAD,
+            p1: ChunkPayloadType::Init as u8,
+            p2: 0x00,
+            data: vec![],
+        };
+
+        let response =
+            ledger_zondax_generic::send_chunks(&self.apdu_transport, &start_command, allowlist)
+                .await?;
+
+        if response.retcode != APDUErrorCodes::NoError as u16 {
+            return Err(LedgerAppError::AppSpecific(
+                response.retcode,
+                map_apdu_error_description(response.retcode).to_string(),
+            ));
+        }
+
+        Ok(())
     }
 }
