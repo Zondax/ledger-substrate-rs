@@ -19,6 +19,8 @@
 #![deny(unused_import_braces, unused_qualifications)]
 #![deny(missing_docs)]
 
+use blake2b_simd::Params;
+use ed25519_dalek::ExpandedSecretKey;
 use ledger_transport::{APDUCommand, APDUErrorCodes, APDUTransport};
 use ledger_zondax_generic::{
     map_apdu_error_description, AppInfo, ChunkPayloadType, DeviceInfo, LedgerAppError, Version,
@@ -26,8 +28,6 @@ use ledger_zondax_generic::{
 use log::info;
 use std::str;
 use zx_bip44::BIP44Path;
-use ed25519_dalek::ExpandedSecretKey;
-use blake2b_simd::Params;
 
 const INS_GET_ADDR_ED25519: u8 = 0x01;
 const INS_SIGN_ED25519: u8 = 0x02;
@@ -114,9 +114,10 @@ impl SubstrateApp {
             Ok(response) => {
                 if response.retcode != APDUErrorCodes::NoError as u16 {
                     info!("get_address: retcode={:X?}", response.retcode);
-                    return Err(
-                        LedgerAppError::AppSpecific(response.retcode,
-                                                    map_apdu_error_description(response.retcode).to_string()));
+                    return Err(LedgerAppError::AppSpecific(
+                        response.retcode,
+                        map_apdu_error_description(response.retcode).to_string(),
+                    ));
                 }
 
                 if response.data.len() < PK_LEN {
@@ -188,9 +189,10 @@ impl SubstrateApp {
             Ok(response) => {
                 if response.retcode != APDUErrorCodes::NoError as u16 {
                     info!("allowlist_get_pubkey: retcode={:X?}", response.retcode);
-                    return Err(
-                        LedgerAppError::AppSpecific(response.retcode,
-                                                    map_apdu_error_description(response.retcode).to_string()));
+                    return Err(LedgerAppError::AppSpecific(
+                        response.retcode,
+                        map_apdu_error_description(response.retcode).to_string(),
+                    ));
                 }
 
                 if response.data.len() < PK_LEN {
@@ -223,9 +225,10 @@ impl SubstrateApp {
             Ok(response) => {
                 if response.retcode != APDUErrorCodes::NoError as u16 {
                     info!("allowlist_set_pubkey: retcode={:X?}", response.retcode);
-                    return Err(
-                        LedgerAppError::AppSpecific(response.retcode,
-                                                    map_apdu_error_description(response.retcode).to_string()));
+                    return Err(LedgerAppError::AppSpecific(
+                        response.retcode,
+                        map_apdu_error_description(response.retcode).to_string(),
+                    ));
                 }
 
                 Ok(())
@@ -237,7 +240,11 @@ impl SubstrateApp {
 
     /// Generates a signed allow list based on
     /// https://github.com/Zondax/ledger-kusama/blob/master/docs/APDUSPEC.md#allow-list-structure
-    pub fn generate_allowlist(nonce: u32, valid_addresses: Vec<&str>, esk: ExpandedSecretKey) -> Vec<u8> {
+    pub fn generate_allowlist(
+        nonce: u32,
+        valid_addresses: Vec<&str>,
+        esk: ExpandedSecretKey,
+    ) -> Vec<u8> {
         // Prepare keys to sign
         let pk = ed25519_dalek::PublicKey::from(&esk);
 
@@ -270,7 +277,7 @@ impl SubstrateApp {
             &signature.to_bytes()[..],
             &address_vec.as_slice(),
         ]
-            .concat()
+        .concat()
     }
 
     /// Retrieves the public key and address
@@ -287,9 +294,10 @@ impl SubstrateApp {
             Ok(response) => {
                 if response.retcode != APDUErrorCodes::NoError as u16 {
                     info!("allowlist_get_hash: retcode={:X?}", response.retcode);
-                    return Err(
-                        LedgerAppError::AppSpecific(response.retcode,
-                                                    map_apdu_error_description(response.retcode).to_string()));
+                    return Err(LedgerAppError::AppSpecific(
+                        response.retcode,
+                        map_apdu_error_description(response.retcode).to_string(),
+                    ));
                 }
 
                 if response.data.len() < PK_LEN {
