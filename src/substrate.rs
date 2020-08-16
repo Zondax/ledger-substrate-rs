@@ -26,6 +26,8 @@ use ledger_zondax_generic::{
 use log::info;
 use std::str;
 use zx_bip44::BIP44Path;
+use ed25519_dalek::ExpandedSecretKey;
+use blake2b_simd::Params;
 
 const INS_GET_ADDR_ED25519: u8 = 0x01;
 const INS_SIGN_ED25519: u8 = 0x02;
@@ -222,6 +224,44 @@ impl SubstrateApp {
 
             Err(e) => Err(LedgerAppError::TransportError(e)),
         }
+    }
+
+    /// Generates a signed allow list based on
+    /// https://github.com/Zondax/ledger-kusama/blob/master/docs/APDUSPEC.md#allow-list-structure
+    pub fn generate_allowlist(nonce: u32, valid_addresses: Vec<&str>, esk: ExpandedSecretKey) -> Vec<u8> {
+        // Prepare keys to sign
+        let pk = ed25519_dalek::PublicKey::from(&esk);
+
+        // The serialized allow list should look list:
+        let nonce_bytes = nonce.to_le_bytes();
+
+        let allowlist_len = valid_addresses.len();
+        let allowlist_len_bytes = (allowlist_len as u32).to_le_bytes();
+
+        let mut address_vec: Vec<u8> = vec![];
+        address_vec.resize(64 * allowlist_len, 0);
+
+        for i in 0..allowlist_len {
+            let addr = valid_addresses[i];
+            address_vec[i * 64..i * 64 + addr.len()].copy_from_slice(&addr.as_bytes());
+        }
+
+        let digest = Params::new()
+            .hash_length(32)
+            .to_state()
+            .update(&nonce_bytes[..])
+            .update(&allowlist_len_bytes[..])
+            .update(&address_vec.as_slice())
+            .finalize();
+
+        let signature = esk.sign(&digest.as_bytes(), &pk);
+        [
+            &nonce_bytes,
+            &allowlist_len_bytes,
+            &signature.to_bytes()[..],
+            &address_vec.as_slice(),
+        ]
+            .concat()
     }
 
     /// Retrieves the public key and address

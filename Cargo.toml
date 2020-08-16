@@ -1,7 +1,7 @@
 [package]
 name = "ledger-substrate"
 description = "Library to integrate with the Ledger Substrate apps"
-version = "0.6.0"
+version = "0.7.0"
 license = "Apache-2.0"
 authors = ["Zondax GmbH <info@zondax.ch>"]
 homepage = "https://github.com/Zondax/ledger-substrate-rs"
@@ -29,13 +29,13 @@ zx-bip44 = { git = "https://github.com/Zondax/blockchain-tools-rs" }
 ledger-zondax-generic = { git = "https://github.com/Zondax/ledger-rs" }
 ledger-transport = { git = "https://github.com/Zondax/ledger-rs" }
 ledger-transport-hid = { git = "https://github.com/Zondax/ledger-rs" }
+ed25519-dalek ="1.0.0-pre.4"
+blake2b_simd = "0.5"
 
 [dev-dependencies]
 futures = "0.3"
 matches = "0.1"
-ed25519-dalek ="1.0.0-pre.4"
 sha2 = "0.8"
-blake2b_simd = "0.5"
 hex = "0.4"
 serial_test = "0.3"
 env_logger = "0.7"
