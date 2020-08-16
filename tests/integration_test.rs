@@ -34,7 +34,7 @@ mod integration_tests {
     use ed25519_dalek::PublicKey;
     use env_logger::Env;
     use futures_await_test::async_test;
-    use ledger_substrate::{new_kusama_app, APDUTransport, AppMode};
+    use ledger_substrate::{new_kusama_app, APDUTransport, AppMode, SubstrateApp};
     use std::convert::TryInto;
     use zx_bip44::BIP44Path;
 
@@ -185,45 +185,6 @@ mod integration_tests {
     static SOME_PK: &str = "3b6a27bcceb6a42d62a3a8d02a6f0d73653215771de243a63ac048a18b59da29";
     static SOME_SK: &str = "5046adc1dba838867b2bbbfdd0c3423e58b57970b5267a90f57960924a87f1560a6a85eaa642dac835424b5d7c8d637c00408c7a73da672b7f498521420b6dd3";
 
-    fn generate_allowlist(nonce: u32, valid_addresses: Vec<&str>, sk: Vec<u8>) -> Vec<u8> {
-        init_logging();
-
-        // Prepare keys to sign
-        let esk = ed25519_dalek::ExpandedSecretKey::from_bytes(&sk).unwrap();
-        let pk = ed25519_dalek::PublicKey::from(&esk);
-
-        // The serialized allow list should look list:
-        let nonce_bytes = nonce.to_le_bytes();
-
-        let allowlist_len = valid_addresses.len();
-        let allowlist_len_bytes = (allowlist_len as u32).to_le_bytes();
-
-        let mut address_vec: Vec<u8> = vec![];
-        address_vec.resize(64 * allowlist_len, 0);
-
-        for i in 0..allowlist_len {
-            let addr = valid_addresses[i];
-            address_vec[i * 64..i * 64 + addr.len()].copy_from_slice(&addr.as_bytes());
-        }
-
-        let digest = Params::new()
-            .hash_length(32)
-            .to_state()
-            .update(&nonce_bytes[..])
-            .update(&allowlist_len_bytes[..])
-            .update(&address_vec.as_slice())
-            .finalize();
-
-        let signature = esk.sign(&digest.as_bytes(), &pk);
-        [
-            &nonce_bytes,
-            &allowlist_len_bytes,
-            &signature.to_bytes()[..],
-            &address_vec.as_slice(),
-        ]
-        .concat()
-    }
-
     #[async_test]
     #[serial]
     async fn allowlist_upload() {
@@ -257,7 +218,8 @@ mod integration_tests {
             "HXAjzUP15goNbAkujFgnNcioHhUGMDMSRdfbSxi11GsCBV6",
         ];
         let sk = hex::decode(SOME_SK).unwrap();
-        let serialized_allowlist = generate_allowlist(0, addresses, sk);
+        let esk = ed25519_dalek::ExpandedSecretKey::from_bytes(&sk).unwrap();
+        let serialized_allowlist = SubstrateApp::generate_allowlist(0, addresses, esk);
         let _ = app
             .allowlist_upload(&serialized_allowlist[..])
             .await
