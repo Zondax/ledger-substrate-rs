@@ -114,6 +114,9 @@ impl SubstrateApp {
             Ok(response) => {
                 if response.retcode != APDUErrorCodes::NoError as u16 {
                     info!("get_address: retcode={:X?}", response.retcode);
+                    return Err(
+                        LedgerAppError::AppSpecific(response.retcode,
+                                                    map_apdu_error_description(response.retcode).to_string()));
                 }
 
                 if response.data.len() < PK_LEN {
@@ -185,6 +188,9 @@ impl SubstrateApp {
             Ok(response) => {
                 if response.retcode != APDUErrorCodes::NoError as u16 {
                     info!("allowlist_get_pubkey: retcode={:X?}", response.retcode);
+                    return Err(
+                        LedgerAppError::AppSpecific(response.retcode,
+                                                    map_apdu_error_description(response.retcode).to_string()));
                 }
 
                 if response.data.len() < PK_LEN {
@@ -217,6 +223,9 @@ impl SubstrateApp {
             Ok(response) => {
                 if response.retcode != APDUErrorCodes::NoError as u16 {
                     info!("allowlist_set_pubkey: retcode={:X?}", response.retcode);
+                    return Err(
+                        LedgerAppError::AppSpecific(response.retcode,
+                                                    map_apdu_error_description(response.retcode).to_string()));
                 }
 
                 Ok(())
@@ -278,6 +287,9 @@ impl SubstrateApp {
             Ok(response) => {
                 if response.retcode != APDUErrorCodes::NoError as u16 {
                     info!("allowlist_get_hash: retcode={:X?}", response.retcode);
+                    return Err(
+                        LedgerAppError::AppSpecific(response.retcode,
+                                                    map_apdu_error_description(response.retcode).to_string()));
                 }
 
                 if response.data.len() < PK_LEN {
