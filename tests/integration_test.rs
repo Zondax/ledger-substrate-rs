@@ -154,7 +154,7 @@ mod integration_tests {
         }
 
         let path = BIP44Path::from_string("m/44'/434'/0'/0'/5'").unwrap();
-        let txstr = "0400f68ad810c8070fdacded5e85661439ab61010c2da28b645797d45d22a2af837800d503008ed73e0dd807000001000000b0a8d493285c2df73290dfb7e61f870f17b41801197a149ca93654499ea3dafeb0a8d493285c2df73290dfb7e61f870f17b41801197a149ca93654499ea3dafe";
+        let txstr = "04009ae55222192347c60793232dd229197a5e6ad158b2b4fea7900458d1273ba4c933158139ae28a3dfaac5fe1560a5e9e05cd50391016d0fe607000002000000b0a8d493285c2df73290dfb7e61f870f17b41801197a149ca93654499ea3dafeb0a8d493285c2df73290dfb7e61f870f17b41801197a149ca93654499ea3dafe";
         let blob = hex::decode(txstr).unwrap();
 
         // First, get public key
@@ -187,6 +187,27 @@ mod integration_tests {
 
     #[async_test]
     #[serial]
+    async fn allowlist_create() {
+        init_logging();
+
+        // Now upload the allowlist
+        let addresses = vec![
+            "FQr6vFmm8zNFV9m4ZMxKzMdUVUbPtrhxxaVkAybHxsDYMCY",
+            "HXAjzUP15goNbAkujFgnNcioHhUGMDMSRdfbSxi11GsCBV6",
+        ];
+
+        let sk = hex::decode(SOME_SK).unwrap();
+        let esk = ed25519_dalek::ExpandedSecretKey::from_bytes(&sk).unwrap();
+        let allowlist = SubstrateApp::generate_allowlist(0, addresses, esk).unwrap();
+
+        assert_eq!(
+            hex::encode(allowlist.digest),
+            "42cd31e70afa9fc4cd0e72e0cfebf30f6294e048e9eb0b84d98c0afbcd40f804"
+        );
+    }
+
+    #[async_test]
+    #[serial]
     async fn allowlist_upload() {
         init_logging();
 
@@ -214,22 +235,17 @@ mod integration_tests {
 
         // Now upload the allowlist
         let addresses = vec![
-            "FQr6vFmm8zNFV9m4ZMxKzMdUVUbPtrhxxaVkAybHxsDYMCY",
-            "HXAjzUP15goNbAkujFgnNcioHhUGMDMSRdfbSxi11GsCBV6",
+            "HRbm5tb7R2oz7WRNpNKUSz9gqDR1GZ6q6psh7TdXUwQLcpj",
+            "Dn3g4pKTHbiRuxzr1S8N5swxz6hqUBFYfKXbWNcvWTW5YSP",
         ];
         let sk = hex::decode(SOME_SK).unwrap();
         let esk = ed25519_dalek::ExpandedSecretKey::from_bytes(&sk).unwrap();
-        let serialized_allowlist = SubstrateApp::generate_allowlist(0, addresses, esk);
-        let _ = app
-            .allowlist_upload(&serialized_allowlist[..])
-            .await
-            .unwrap();
+        let allowlist = SubstrateApp::generate_allowlist(1, addresses, esk).unwrap();
+
+        let _ = app.allowlist_upload(&allowlist.blob[..]).await.unwrap();
 
         let allowlist_digest = app.allowlist_get_hash().await.unwrap();
-        assert_eq!(
-            hex::encode(allowlist_digest),
-            "01b3a561eaec03828ec17f033a924151caa95366e448b48842a24f47374acf20"
-        );
+        assert_eq!(hex::encode(allowlist_digest), hex::encode(allowlist.digest));
 
         let path = BIP44Path::from_string("m/44'/434'/0'/0'/5'").unwrap();
 
@@ -237,11 +253,11 @@ mod integration_tests {
 
         // THIS SHOULD BE ACCEPTED
         // "0 | Staking : Nominate",
-        // "1 | Targets [1/4] : FQr6vFmm8zNFV9m4ZMxKzMdUVUbPtrhxxaVkAyb",
-        // "1 | Targets [2/4] : HxsDYMCY",
-        // "1 | Targets [3/4] : HXAjzUP15goNbAkujFgnNcioHhUGMDMSRdfbSxi",
-        // "1 | Targets [4/4] : 11GsCBV6",
-        let nominate_tx = "0605087d7b347012aa3e104bedc6343f445646d20e50349513d38991689bf4296c27bddac5e3a64a16ca07c9429a8b50f1b3fe5afaa34fdca515a221b7db1e8e78ead6d503ae1103000b63ce64c10c05dc07000001000000b0a8d493285c2df73290dfb7e61f870f17b41801197a149ca93654499ea3dafeb0a8d493285c2df73290dfb7e61f870f17b41801197a149ca93654499ea3dafe";
+        // "1 | Targets [1/4] : HRbm5tb7R2oz7WRNpNKUSz9gqDR1GZ6q6psh7Td",
+        // "1 | Targets [2/4] : XUwQLcpj",
+        // "1 | Targets [3/4] : Dn3g4pKTHbiRuxzr1S8N5swxz6hqUBFYfKXbWNc",
+        // "1 | Targets [4/4] : vWTW5YSP",
+        let nominate_tx = "060508d686a3466003504d58806608def3d98266bb2cad9a2ecfea32d342e9d4fdd2ae352dd837860c4194fee64ea26d07304ee16b14f6caf28a6852b2c50b3f66242fd5038d246d0fe607000002000000b0a8d493285c2df73290dfb7e61f870f17b41801197a149ca93654499ea3dafeb0a8d493285c2df73290dfb7e61f870f17b41801197a149ca93654499ea3dafe";
         let blob = hex::decode(nominate_tx).unwrap();
 
         // First, get public key

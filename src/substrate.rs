@@ -26,6 +26,7 @@ use ledger_zondax_generic::{
     map_apdu_error_description, AppInfo, ChunkPayloadType, DeviceInfo, LedgerAppError, Version,
 };
 use log::info;
+use std::convert::TryInto;
 use std::str;
 use zx_bip44::BIP44Path;
 
@@ -58,6 +59,11 @@ pub enum AppMode {
 type PublicKey = [u8; PK_LEN];
 
 type AllowlistHash = [u8; 32];
+
+pub struct Allowlist {
+    pub blob: Vec<u8>,
+    pub digest: [u8; 32],
+}
 
 /// Substrate address (includes pubkey and the corresponding ss58 address)
 pub struct Address {
@@ -244,7 +250,7 @@ impl SubstrateApp {
         nonce: u32,
         valid_addresses: Vec<&str>,
         esk: ExpandedSecretKey,
-    ) -> Vec<u8> {
+    ) -> Result<Allowlist, LedgerAppError> {
         // Prepare keys to sign
         let pk = ed25519_dalek::PublicKey::from(&esk);
 
@@ -262,22 +268,29 @@ impl SubstrateApp {
             address_vec[i * 64..i * 64 + addr.len()].copy_from_slice(&addr.as_bytes());
         }
 
-        let digest = Params::new()
+        let digest: [u8; 32] = Params::new()
             .hash_length(32)
             .to_state()
             .update(&nonce_bytes[..])
             .update(&allowlist_len_bytes[..])
             .update(&address_vec.as_slice())
-            .finalize();
+            .finalize()
+            .as_bytes()
+            .try_into()
+            .map_err(|_| LedgerAppError::Crypto)?;
 
-        let signature = esk.sign(&digest.as_bytes(), &pk);
-        [
+        let signature = esk.sign(&digest, &pk);
+
+        let allowlist_items = [
             &nonce_bytes,
             &allowlist_len_bytes,
             &signature.to_bytes()[..],
             &address_vec.as_slice(),
-        ]
-        .concat()
+        ];
+
+        let blob = allowlist_items.concat();
+
+        Ok(Allowlist { blob, digest })
     }
 
     /// Retrieves the public key and address
