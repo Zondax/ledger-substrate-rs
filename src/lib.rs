@@ -32,8 +32,6 @@
 mod substrate;
 
 pub use ledger_transport::errors::TransportError;
-#[cfg(target_arch = "wasm32")]
-pub use ledger_transport::TransportWrapperTrait;
 pub use ledger_transport::{APDUAnswer, APDUCommand, APDUErrorCodes, APDUTransport};
 
 /// Ledger related errors
