@@ -21,7 +21,7 @@
 
 use blake2b_simd::Params;
 use ed25519_dalek::ExpandedSecretKey;
-use ledger_transport::{APDUCommand, APDUErrorCodes, APDUTransport};
+use ledger_transport::{APDUCommand, APDUErrorCodes, APDUTransport, Exchange};
 use ledger_zondax_generic::{
     map_apdu_error_description, AppInfo, ChunkPayloadType, DeviceInfo, LedgerAppError, Version,
 };
@@ -41,8 +41,8 @@ const INS_ALLOWLIST_UPLOAD: u8 = 0x93;
 const PK_LEN: usize = 32;
 
 /// Ledger App
-pub struct SubstrateApp {
-    pub(crate) apdu_transport: APDUTransport,
+pub struct SubstrateApp<T: Exchange> {
+    pub(crate) apdu_transport: APDUTransport<T>,
     pub(crate) cla: u8,
 }
 
@@ -60,8 +60,11 @@ type PublicKey = [u8; PK_LEN];
 
 type AllowlistHash = [u8; 32];
 
+/// Allow list structure
 pub struct Allowlist {
+    /// AllowList blob
     pub blob: Vec<u8>,
+    /// AllowList data digest
     pub digest: [u8; 32],
 }
 
@@ -75,9 +78,60 @@ pub struct Address {
 
 type Signature = [u8; 65];
 
-impl SubstrateApp {
+impl Allowlist {
+    /// Generates a signed allow list based on
+    /// https://github.com/Zondax/ledger-kusama/blob/master/docs/APDUSPEC.md#allow-list-structure
+    pub fn generate_allowlist(
+        nonce: u32,
+        valid_addresses: Vec<&str>,
+        esk: ExpandedSecretKey,
+    ) -> Result<Allowlist, LedgerAppError> {
+        // Prepare keys to sign
+        let pk = ed25519_dalek::PublicKey::from(&esk);
+
+        // The serialized allow list should look list:
+        let nonce_bytes = nonce.to_le_bytes();
+
+        let allowlist_len = valid_addresses.len();
+        let allowlist_len_bytes = (allowlist_len as u32).to_le_bytes();
+
+        let mut address_vec: Vec<u8> = vec![];
+        address_vec.resize(64 * allowlist_len, 0);
+
+        for i in 0..allowlist_len {
+            let addr = valid_addresses[i];
+            address_vec[i * 64..i * 64 + addr.len()].copy_from_slice(&addr.as_bytes());
+        }
+
+        let digest: [u8; 32] = Params::new()
+            .hash_length(32)
+            .to_state()
+            .update(&nonce_bytes[..])
+            .update(&allowlist_len_bytes[..])
+            .update(&address_vec.as_slice())
+            .finalize()
+            .as_bytes()
+            .try_into()
+            .map_err(|_| LedgerAppError::Crypto)?;
+
+        let signature = esk.sign(&digest, &pk);
+
+        let allowlist_items = [
+            &nonce_bytes,
+            &allowlist_len_bytes,
+            &signature.to_bytes()[..],
+            &address_vec.as_slice(),
+        ];
+
+        let blob = allowlist_items.concat();
+
+        Ok(Allowlist { blob, digest })
+    }
+}
+
+impl<T: Exchange> SubstrateApp<T> {
     /// Connect to the Ledger App
-    pub fn new(apdu_transport: APDUTransport, cla: u8) -> Self {
+    pub fn new(apdu_transport: APDUTransport<T>, cla: u8) -> Self {
         SubstrateApp {
             apdu_transport,
             cla,
@@ -242,55 +296,6 @@ impl SubstrateApp {
 
             Err(e) => Err(LedgerAppError::TransportError(e)),
         }
-    }
-
-    /// Generates a signed allow list based on
-    /// https://github.com/Zondax/ledger-kusama/blob/master/docs/APDUSPEC.md#allow-list-structure
-    pub fn generate_allowlist(
-        nonce: u32,
-        valid_addresses: Vec<&str>,
-        esk: ExpandedSecretKey,
-    ) -> Result<Allowlist, LedgerAppError> {
-        // Prepare keys to sign
-        let pk = ed25519_dalek::PublicKey::from(&esk);
-
-        // The serialized allow list should look list:
-        let nonce_bytes = nonce.to_le_bytes();
-
-        let allowlist_len = valid_addresses.len();
-        let allowlist_len_bytes = (allowlist_len as u32).to_le_bytes();
-
-        let mut address_vec: Vec<u8> = vec![];
-        address_vec.resize(64 * allowlist_len, 0);
-
-        for i in 0..allowlist_len {
-            let addr = valid_addresses[i];
-            address_vec[i * 64..i * 64 + addr.len()].copy_from_slice(&addr.as_bytes());
-        }
-
-        let digest: [u8; 32] = Params::new()
-            .hash_length(32)
-            .to_state()
-            .update(&nonce_bytes[..])
-            .update(&allowlist_len_bytes[..])
-            .update(&address_vec.as_slice())
-            .finalize()
-            .as_bytes()
-            .try_into()
-            .map_err(|_| LedgerAppError::Crypto)?;
-
-        let signature = esk.sign(&digest, &pk);
-
-        let allowlist_items = [
-            &nonce_bytes,
-            &allowlist_len_bytes,
-            &signature.to_bytes()[..],
-            &address_vec.as_slice(),
-        ];
-
-        let blob = allowlist_items.concat();
-
-        Ok(Allowlist { blob, digest })
     }
 
     /// Retrieves the public key and address

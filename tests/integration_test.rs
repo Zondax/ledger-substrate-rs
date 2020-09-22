@@ -34,7 +34,7 @@ mod integration_tests {
     use ed25519_dalek::PublicKey;
     use env_logger::Env;
     use futures_await_test::async_test;
-    use ledger_substrate::{new_kusama_app, APDUTransport, AppMode, SubstrateApp};
+    use ledger_substrate::{new_kusama_app, APDUTransport, Allowlist, AppMode};
     use std::convert::TryInto;
     use zx_bip44::BIP44Path;
 
@@ -198,7 +198,7 @@ mod integration_tests {
 
         let sk = hex::decode(SOME_SK).unwrap();
         let esk = ed25519_dalek::ExpandedSecretKey::from_bytes(&sk).unwrap();
-        let allowlist = SubstrateApp::generate_allowlist(0, addresses, esk).unwrap();
+        let allowlist = Allowlist::generate_allowlist(0, addresses, esk).unwrap();
 
         assert_eq!(
             hex::encode(allowlist.digest),
@@ -240,7 +240,7 @@ mod integration_tests {
         ];
         let sk = hex::decode(SOME_SK).unwrap();
         let esk = ed25519_dalek::ExpandedSecretKey::from_bytes(&sk).unwrap();
-        let allowlist = SubstrateApp::generate_allowlist(1, addresses, esk).unwrap();
+        let allowlist = Allowlist::generate_allowlist(1, addresses, esk).unwrap();
 
         let _ = app.allowlist_upload(&allowlist.blob[..]).await.unwrap();
 

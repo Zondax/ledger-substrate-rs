@@ -39,15 +39,15 @@ pub use ledger_transport::{APDUAnswer, APDUCommand, APDUErrorCodes, APDUTranspor
 /// Ledger related errors
 pub use ledger_zondax_generic::LedgerAppError;
 /// Substrate app
-pub use substrate::SubstrateApp;
+pub use substrate::{Allowlist, AppMode, SubstrateApp};
 
-pub use substrate::AppMode;
+use ledger_transport::Exchange;
 
 const CLA_POLKADOT: u8 = 0x90;
 const CLA_KUSAMA: u8 = 0x99;
 
 /// Create a new connection to a polkadot app
-pub fn new_polkadot_app(apdu_transport: APDUTransport) -> SubstrateApp {
+pub fn new_polkadot_app<T: Exchange>(apdu_transport: APDUTransport<T>) -> SubstrateApp<T> {
     SubstrateApp {
         apdu_transport,
         cla: CLA_POLKADOT,
@@ -55,7 +55,7 @@ pub fn new_polkadot_app(apdu_transport: APDUTransport) -> SubstrateApp {
 }
 
 /// Create a new connection to a kusama app
-pub fn new_kusama_app(apdu_transport: APDUTransport) -> SubstrateApp {
+pub fn new_kusama_app<T: Exchange>(apdu_transport: APDUTransport<T>) -> SubstrateApp<T> {
     SubstrateApp {
         apdu_transport,
         cla: CLA_KUSAMA,
