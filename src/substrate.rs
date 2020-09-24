@@ -21,7 +21,7 @@
 
 use blake2b_simd::Params;
 use ed25519_dalek::ExpandedSecretKey;
-use ledger_transport::{APDUCommand, APDUErrorCodes, APDUTransport, Exchange};
+use ledger_transport::{APDUCommand, APDUErrorCodes, APDUTransport};
 use ledger_zondax_generic::{
     map_apdu_error_description, AppInfo, ChunkPayloadType, DeviceInfo, LedgerAppError, Version,
 };
@@ -41,8 +41,8 @@ const INS_ALLOWLIST_UPLOAD: u8 = 0x93;
 const PK_LEN: usize = 32;
 
 /// Ledger App
-pub struct SubstrateApp<T: Exchange> {
-    pub(crate) apdu_transport: APDUTransport<T>,
+pub struct SubstrateApp {
+    pub(crate) apdu_transport: APDUTransport,
     pub(crate) cla: u8,
 }
 
@@ -129,9 +129,9 @@ impl Allowlist {
     }
 }
 
-impl<T: Exchange> SubstrateApp<T> {
+impl SubstrateApp {
     /// Connect to the Ledger App
-    pub fn new(apdu_transport: APDUTransport<T>, cla: u8) -> Self {
+    pub fn new(apdu_transport: APDUTransport, cla: u8) -> Self {
         SubstrateApp {
             apdu_transport,
             cla,

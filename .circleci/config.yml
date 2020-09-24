@@ -6,7 +6,25 @@ jobs:
       - image: zondax/rust-ci:latest
     steps:
       - checkout
-      - run: sudo apt-get install libudev-dev libusb-1.0-0-dev
+      - run: sudo apt-get install libudev-dev libusb-1.0-0-dev protobuf-compiler
+      - run:
+          name: build
+          command: |
+            rustc --version
+            cargo --version
+            cargo build
+      - run:
+          name: build wasm
+          command: |
+            rustc --version
+            cargo --version
+            cargo build --target=wasm32-unknown-unknown
+      - run:
+          name: build --release
+          command: |
+            rustc --version
+            cargo --version
+            cargo build --release
       - run:
           name: rustfmt
           command: |
@@ -22,28 +40,16 @@ jobs:
           command: |
             cargo audit --version
             cargo audit
-      - run:
-          name: build
-          command: |
-            rustc --version
-            cargo --version
-            cargo build
-      - run:
-          name: build --release
-          command: |
-            rustc --version
-            cargo --version
-            cargo build --release
 
   tests:
     docker:
       - image: zondax/rust-ci:latest
     steps:
       - checkout
-      - run: sudo apt-get install libudev-dev libusb-1.0-0-dev
+      - run: sudo apt-get install libudev-dev libusb-1.0-0-dev protobuf-compiler
       - run:
           name: test --all-features
-          command: |
+          command: | 
             rustc --version
             cargo --version
             cargo test --lib --all-features

@@ -28,9 +28,12 @@ log = "0.4.8"
 zx-bip44 = { git = "https://github.com/Zondax/blockchain-tools-rs" }
 ledger-zondax-generic = { git = "https://github.com/Zondax/ledger-rs" }
 ledger-transport = { git = "https://github.com/Zondax/ledger-rs" }
-ledger-transport-hid = { git = "https://github.com/Zondax/ledger-rs" }
 ed25519-dalek ="1.0.0-pre.4"
 blake2b_simd = "0.5"
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+ledger-transport-hid = { git = "https://github.com/Zondax/ledger-rs" }
+
 
 [dev-dependencies]
 futures = "0.3"

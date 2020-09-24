@@ -49,9 +49,7 @@ mod integration_tests {
     async fn version() {
         init_logging();
 
-        let transport = APDUTransport {
-            transport_wrapper: ledger::TransportNativeHID::new().unwrap(),
-        };
+        let transport = APDUTransport::new(ledger::TransportNativeHID::new().unwrap());
         let app = new_kusama_app(transport);
 
         let resp = app.get_version().await.unwrap();
@@ -71,9 +69,7 @@ mod integration_tests {
     async fn address() {
         init_logging();
 
-        let transport = APDUTransport {
-            transport_wrapper: ledger::TransportNativeHID::new().unwrap(),
-        };
+        let transport = APDUTransport::new(ledger::TransportNativeHID::new().unwrap());
         let app = new_kusama_app(transport);
 
         let path = BIP44Path::from_string("m/44'/434'/0'/0'/5'").unwrap();
@@ -95,9 +91,7 @@ mod integration_tests {
     async fn show_address() {
         init_logging();
 
-        let transport = APDUTransport {
-            transport_wrapper: ledger::TransportNativeHID::new().unwrap(),
-        };
+        let transport = APDUTransport::new(ledger::TransportNativeHID::new().unwrap());
         let app = new_kusama_app(transport);
 
         let path = BIP44Path::from_string("m/44'/434'/0'/0'/5'").unwrap();
@@ -119,9 +113,7 @@ mod integration_tests {
     async fn sign_empty() {
         init_logging();
 
-        let transport = APDUTransport {
-            transport_wrapper: ledger::TransportNativeHID::new().unwrap(),
-        };
+        let transport = APDUTransport::new(ledger::TransportNativeHID::new().unwrap());
         let app = new_kusama_app(transport);
 
         let path = BIP44Path::from_string("m/44'/434'/0'/0'/5'").unwrap();
@@ -140,9 +132,7 @@ mod integration_tests {
     async fn sign_verify() {
         init_logging();
 
-        let transport = APDUTransport {
-            transport_wrapper: ledger::TransportNativeHID::new().unwrap(),
-        };
+        let transport = APDUTransport::new(ledger::TransportNativeHID::new().unwrap());
         let app = new_kusama_app(transport);
 
         let app_version = app.get_version().await.unwrap();
@@ -211,9 +201,7 @@ mod integration_tests {
     async fn allowlist_upload() {
         init_logging();
 
-        let transport = APDUTransport {
-            transport_wrapper: ledger::TransportNativeHID::new().unwrap(),
-        };
+        let transport = APDUTransport::new(ledger::TransportNativeHID::new().unwrap());
         let app = new_kusama_app(transport);
 
         let app_version = app.get_version().await.unwrap();
